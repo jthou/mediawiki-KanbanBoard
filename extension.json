@@ -65,9 +65,7 @@
 		"kanban": {
 			"class": "MediaWiki\\Extension\\KanbanBoard\\ApiKanban",
 			"services": [
-				"DBLoadBalancerFactory",
-				"UserFactory",
-				"TitleFactory"
+				"DBLoadBalancerFactory"
 			]
 		}
 	},

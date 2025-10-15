@@ -1,5 +1,5 @@
 /**
- * MediaWiki Kanban Board Extension - Styles
+ * MediaWiki Kanban Board Extension - Enhanced CSS
  * 
  * @file
  * @ingroup Extensions
@@ -38,17 +38,19 @@
     display: flex;
     gap: 20px;
     overflow-x: auto;
-    padding-bottom: 20px;
+    padding: 10px 0;
 }
 
-/* 单个列 */
+/* 列样式 */
 .kanban-column {
-    background: #ffffff;
+    background: white;
     border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     min-width: 300px;
-    max-width: 350px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
     border-top: 4px solid #3498db;
+    display: flex;
+    flex-direction: column;
 }
 
 /* 列头部 */
@@ -67,20 +69,28 @@
     font-weight: 600;
 }
 
+.kanban-wip-info {
+    font-size: 12px;
+    color: #6c757d;
+    background: #f8f9fa;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
 /* 添加卡片按钮 */
 .kanban-add-card-btn {
     background: #3498db;
     color: white;
     border: none;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
 }
 
 .kanban-add-card-btn:hover {
@@ -90,49 +100,45 @@
 /* 卡片容器 */
 .kanban-cards {
     padding: 15px;
+    flex: 1;
     min-height: 200px;
 }
 
-/* 单个卡片 */
+/* 卡片样式 */
 .kanban-card {
-    background: #ffffff;
+    background: white;
     border: 1px solid #e9ecef;
     border-radius: 6px;
     padding: 12px;
     margin-bottom: 10px;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
     position: relative;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .kanban-card:hover {
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
 }
 
 .kanban-card.priority-high {
     border-left: 4px solid #e74c3c;
 }
 
-/* 卡片标题 */
 .kanban-card-title {
     font-weight: 600;
     color: #2c3e50;
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     font-size: 14px;
-    line-height: 1.4;
 }
 
-/* 卡片描述 */
 .kanban-card-description {
     color: #6c757d;
     font-size: 12px;
     line-height: 1.4;
-    margin-bottom: 8px;
 }
 
-/* 卡片编辑按钮 */
 .kanban-card-edit {
     position: absolute;
     top: 8px;
@@ -140,9 +146,9 @@
     background: none;
     border: none;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.3s;
     font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
 }
 
 .kanban-card:hover .kanban-card-edit {
@@ -158,21 +164,22 @@
     padding: 12px 20px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 500;
     margin-top: 20px;
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
 }
 
 .kanban-add-column-btn:hover {
     background: #229954;
 }
 
-/* 拖拽占位符 */
-.kanban-card-placeholder {
-    background: #f8f9fa;
-    border: 2px dashed #dee2e6;
-    border-radius: 6px;
-    height: 60px;
-    margin-bottom: 10px;
+/* 空状态 */
+.kanban-no-columns,
+.kanban-no-cards {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
 }
 
 /* 加载状态 */
@@ -189,97 +196,332 @@
     padding: 40px;
     color: #e74c3c;
     font-size: 16px;
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
+    background: #fdf2f2;
+    border: 1px solid #fecaca;
     border-radius: 6px;
+}
+
+/* 成功消息 */
+.kanban-success-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #27ae60;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1001;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 添加列对话框样式 */
+.kanban-add-column-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: none;
+}
+
+.dialog-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.dialog-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: dialogSlideIn 0.3s ease-out;
+}
+
+@keyframes dialogSlideIn {
+    from {
+        transform: translate(-50%, -60%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, -50%);
+        opacity: 1;
+    }
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+}
+
+.dialog-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.dialog-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.dialog-close:hover {
+    color: #2c3e50;
+    background: #e9ecef;
+}
+
+.kanban-column-form {
+    padding: 24px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.color-picker {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.color-picker input[type="color"] {
+    width: 50px;
+    height: 40px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.color-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.color-preset {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.color-preset:hover {
+    border-color: #2c3e50;
+    transform: scale(1.1);
+}
+
+.color-preset::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c3e50;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.color-preset:hover::after {
+    opacity: 1;
+}
+
+.help-text,
+.unit {
+    font-size: 12px;
+    color: #6c757d;
+    margin-left: 6px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-cancel,
+.btn-primary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    min-width: 80px;
+}
+
+.btn-cancel {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #e9ecef;
+}
+
+.btn-cancel:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+}
+
+.btn-primary:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
     .kanban-columns {
         flex-direction: column;
+        gap: 15px;
     }
     
     .kanban-column {
-        min-width: 100%;
-        max-width: 100%;
+        min-width: auto;
+        max-width: none;
     }
     
+    .dialog-content {
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .kanban-column-form {
+        padding: 20px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn-cancel,
+    .btn-primary {
+        width: 100%;
+    }
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
     .kanban-board {
-        padding: 15px;
-        margin: 10px 0;
+        background: #2c3e50;
+        color: #ecf0f1;
     }
-}
-
-/* 动画效果 */
-.kanban-card {
-    animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
+    
+    .kanban-column {
+        background: #34495e;
+        color: #ecf0f1;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    
+    .kanban-card {
+        background: #34495e;
+        border-color: #4a5f7a;
+        color: #ecf0f1;
     }
-}
-
-/* 卡片优先级颜色 */
-.kanban-card.priority-low {
-    border-left-color: #95a5a6;
-}
-
-.kanban-card.priority-medium {
-    border-left-color: #f39c12;
-}
-
-.kanban-card.priority-high {
-    border-left-color: #e74c3c;
-}
-
-.kanban-card.priority-urgent {
-    border-left-color: #8e44ad;
-    background: #fdf2f8;
-}
-
-/* 工具提示 */
-.kanban-tooltip {
-    position: relative;
-}
-
-.kanban-tooltip:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #2c3e50;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 1000;
-}
-
-/* 滚动条样式 */
-.kanban-columns::-webkit-scrollbar {
-    height: 8px;
-}
-
-.kanban-columns::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.kanban-columns::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-.kanban-columns::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    
+    .dialog-content {
+        background: #34495e;
+        color: #ecf0f1;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        background: #2c3e50;
+        border-color: #4a5f7a;
+        color: #ecf0f1;
+    }
 }
