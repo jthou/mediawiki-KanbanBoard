@@ -1,0 +1,98 @@
+{
+	"name": "KanbanBoard",
+	"version": "1.0.0",
+	"author": "Your Name",
+	"url": "https://www.mediawiki.org/wiki/Extension:KanbanBoard",
+	"descriptionmsg": "kanbanboard-desc",
+	"license-name": "GPL-2.0-or-later",
+	"type": "other",
+	"requires": {
+		"MediaWiki": ">= 1.42"
+	},
+	"MessagesDirs": {
+		"KanbanBoard": [
+			"i18n"
+		]
+	},
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\KanbanBoard\\": "includes/"
+	},
+	"TestAutoloadNamespaces": {
+		"MediaWiki\\Extension\\KanbanBoard\\Tests\\": "tests/phpunit/"
+	},
+	"ResourceModules": {
+		"ext.kanbanboard": {
+			"localBasePath": "resources",
+			"remoteExtPath": "KanbanBoard/resources",
+			"scripts": [
+				"js/kanban.js"
+			],
+			"styles": [
+				"css/kanban.css"
+			],
+			"messages": [
+				"kanbanboard-add-card",
+				"kanbanboard-add-column",
+				"kanbanboard-edit-card",
+				"kanbanboard-delete-card",
+				"kanbanboard-move-card",
+				"kanbanboard-save",
+				"kanbanboard-cancel",
+				"kanbanboard-loading",
+				"kanbanboard-error"
+			],
+			"dependencies": [
+				"mediawiki.api",
+				"mediawiki.util"
+			]
+		}
+	},
+	"ResourceFileModulePaths": {
+		"localBasePath": "resources",
+		"remoteExtPath": "KanbanBoard/resources"
+	},
+	"SpecialPages": {
+		"KanbanBoard": {
+			"class": "MediaWiki\\Extension\\KanbanBoard\\SpecialKanbanBoard",
+			"services": [
+				"DBLoadBalancerFactory",
+				"UserFactory",
+				"TitleFactory"
+			]
+		}
+	},
+	"APIModules": {
+		"kanban": {
+			"class": "MediaWiki\\Extension\\KanbanBoard\\ApiKanban",
+			"services": [
+				"DBLoadBalancerFactory",
+				"UserFactory",
+				"TitleFactory"
+			]
+		}
+	},
+	"Hooks": {
+		"ParserFirstCallInit": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onParserFirstCallInit"
+	},
+	"HookHandlers": {
+		"default": {
+			"class": "MediaWiki\\Extension\\KanbanBoard\\Hooks",
+			"services": [
+				"DBLoadBalancerFactory",
+				"UserFactory"
+			]
+		}
+	},
+	"config": {
+		"KanbanBoardMaxColumns": {
+			"value": 10
+		},
+		"KanbanBoardMaxCardsPerColumn": {
+			"value": 100
+		},
+		"KanbanBoardAllowAnonymousEdit": {
+			"value": false
+		}
+	},
+	"manifest_version": 2
+}

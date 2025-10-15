@@ -1,0 +1,285 @@
+/**
+ * MediaWiki Kanban Board Extension - Styles
+ * 
+ * @file
+ * @ingroup Extensions
+ */
+
+/* 看板容器 */
+.kanban-board {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 看板头部 */
+.kanban-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.kanban-header h2 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+    font-size: 24px;
+}
+
+.kanban-header p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+/* 列容器 */
+.kanban-columns {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding-bottom: 20px;
+}
+
+/* 单个列 */
+.kanban-column {
+    background: #ffffff;
+    border-radius: 8px;
+    min-width: 300px;
+    max-width: 350px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border-top: 4px solid #3498db;
+}
+
+/* 列头部 */
+.kanban-column-header {
+    padding: 15px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.kanban-column-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* 添加卡片按钮 */
+.kanban-add-card-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+}
+
+.kanban-add-card-btn:hover {
+    background: #2980b9;
+}
+
+/* 卡片容器 */
+.kanban-cards {
+    padding: 15px;
+    min-height: 200px;
+}
+
+/* 单个卡片 */
+.kanban-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.kanban-card:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.kanban-card.priority-high {
+    border-left: 4px solid #e74c3c;
+}
+
+/* 卡片标题 */
+.kanban-card-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* 卡片描述 */
+.kanban-card-description {
+    color: #6c757d;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+/* 卡片编辑按钮 */
+.kanban-card-edit {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 12px;
+}
+
+.kanban-card:hover .kanban-card-edit {
+    opacity: 1;
+}
+
+/* 添加列按钮 */
+.kanban-add-column-btn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 20px;
+    transition: background-color 0.3s;
+}
+
+.kanban-add-column-btn:hover {
+    background: #229954;
+}
+
+/* 拖拽占位符 */
+.kanban-card-placeholder {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 6px;
+    height: 60px;
+    margin-bottom: 10px;
+}
+
+/* 加载状态 */
+.kanban-loading {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    font-size: 16px;
+}
+
+/* 错误状态 */
+.kanban-error {
+    text-align: center;
+    padding: 40px;
+    color: #e74c3c;
+    font-size: 16px;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .kanban-columns {
+        flex-direction: column;
+    }
+    
+    .kanban-column {
+        min-width: 100%;
+        max-width: 100%;
+    }
+    
+    .kanban-board {
+        padding: 15px;
+        margin: 10px 0;
+    }
+}
+
+/* 动画效果 */
+.kanban-card {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 卡片优先级颜色 */
+.kanban-card.priority-low {
+    border-left-color: #95a5a6;
+}
+
+.kanban-card.priority-medium {
+    border-left-color: #f39c12;
+}
+
+.kanban-card.priority-high {
+    border-left-color: #e74c3c;
+}
+
+.kanban-card.priority-urgent {
+    border-left-color: #8e44ad;
+    background: #fdf2f8;
+}
+
+/* 工具提示 */
+.kanban-tooltip {
+    position: relative;
+}
+
+.kanban-tooltip:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c3e50;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* 滚动条样式 */
+.kanban-columns::-webkit-scrollbar {
+    height: 8px;
+}
+
+.kanban-columns::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.kanban-columns::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.kanban-columns::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
