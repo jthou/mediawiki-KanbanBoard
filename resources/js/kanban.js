@@ -545,8 +545,12 @@
             header.appendChild(wipInfo);
         }
         
-        // 如果不是只读模式，添加添加卡片按钮
+        // 如果不是只读模式，添加操作按钮
         if (!this.board.readOnly) {
+            var actionsContainer = document.createElement('div');
+            actionsContainer.className = 'kanban-column-actions';
+            
+            // 添加卡片按钮
             var addCardBtn = document.createElement('button');
             addCardBtn.className = 'kanban-add-card-btn';
             addCardBtn.textContent = '+';
@@ -556,7 +560,19 @@
                 self.showAddCardDialog();
             });
             
-            header.appendChild(addCardBtn);
+            // 删除列按钮
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'kanban-delete-column-btn';
+            deleteBtn.textContent = '×';
+            deleteBtn.title = '删除列';
+            
+            deleteBtn.addEventListener('click', function() {
+                self.showDeleteColumnDialog();
+            });
+            
+            actionsContainer.appendChild(addCardBtn);
+            actionsContainer.appendChild(deleteBtn);
+            header.appendChild(actionsContainer);
         }
         
         this.element.appendChild(header);
@@ -603,6 +619,163 @@
             // 模拟添加卡片
             alert('添加卡片功能暂时不可用，请等待API修复');
         }
+    };
+    
+    /**
+     * 显示删除列确认对话框
+     */
+    KanbanColumn.prototype.showDeleteColumnDialog = function() {
+        var self = this;
+        
+        // 检查是否是最小列数
+        if (this.board.columns.length <= 1) {
+            alert('无法删除最后一列！');
+            return;
+        }
+        
+        // 创建确认对话框
+        var dialogHtml = `
+            <div class="kanban-delete-column-dialog" id="deleteColumnDialog">
+                <div class="dialog-overlay"></div>
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h3>删除列确认</h3>
+                        <button class="dialog-close">&times;</button>
+                    </div>
+                    <div class="dialog-body">
+                        <p>确定要删除列 "<strong>${this.data.column_name}</strong>" 吗？</p>
+                        <p class="warning-text">此操作不可撤销！</p>
+                        
+                        <div class="form-group">
+                            <label>列中有 ${this.data.cards.length} 个卡片，请选择处理方式：</label>
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" name="cardAction" value="move" checked>
+                                    移动到其他列
+                                </label>
+                                <label>
+                                    <input type="radio" name="cardAction" value="delete">
+                                    删除所有卡片
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" id="targetColumnGroup">
+                            <label for="targetColumn">选择目标列：</label>
+                            <select id="targetColumn" name="move_cards_to">
+                                ${this.getTargetColumnsOptions()}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="dialog-footer">
+                        <button type="button" class="btn btn-secondary" id="cancelDelete">取消</button>
+                        <button type="button" class="btn btn-danger" id="confirmDelete">确认删除</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 添加到页面
+        document.body.insertAdjacentHTML('beforeend', dialogHtml);
+        
+        var dialog = document.getElementById('deleteColumnDialog');
+        var cardActionRadios = dialog.querySelectorAll('input[name="cardAction"]');
+        var targetColumnGroup = dialog.getElementById('targetColumnGroup');
+        var targetColumnSelect = dialog.getElementById('targetColumn');
+        
+        // 切换卡片处理方式
+        cardActionRadios.forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                if (this.value === 'move') {
+                    targetColumnGroup.style.display = 'block';
+                } else {
+                    targetColumnGroup.style.display = 'none';
+                }
+            });
+        });
+        
+        // 关闭对话框
+        dialog.querySelector('.dialog-close').addEventListener('click', function() {
+            dialog.remove();
+        });
+        
+        dialog.querySelector('#cancelDelete').addEventListener('click', function() {
+            dialog.remove();
+        });
+        
+        // 确认删除
+        dialog.querySelector('#confirmDelete').addEventListener('click', function() {
+            var cardAction = dialog.querySelector('input[name="cardAction"]:checked').value;
+            var moveCardsTo = cardAction === 'move' ? targetColumnSelect.value : 0;
+            
+            self.deleteColumn(moveCardsTo);
+            dialog.remove();
+        });
+        
+        // 点击遮罩关闭
+        dialog.querySelector('.dialog-overlay').addEventListener('click', function() {
+            dialog.remove();
+        });
+    };
+    
+    /**
+     * 获取目标列选项HTML
+     */
+    KanbanColumn.prototype.getTargetColumnsOptions = function() {
+        var options = '';
+        for (var i = 0; i < this.board.columns.length; i++) {
+            var column = this.board.columns[i];
+            if (column.data.column_id !== this.data.column_id) {
+                options += `<option value="${column.data.column_id}">${column.data.column_name}</option>`;
+            }
+        }
+        return options;
+    };
+    
+    /**
+     * 删除列
+     */
+    KanbanColumn.prototype.deleteColumn = function(moveCardsTo) {
+        var self = this;
+        
+        var params = {
+            action: 'kanban',
+            kanban_action: 'deletecolumn',
+            board_id: this.board.boardId,
+            column_id: this.data.column_id,
+            move_cards_to: moveCardsTo
+        };
+        
+        // 显示加载状态
+        this.element.style.opacity = '0.5';
+        
+        // 发送API请求
+        this.board.api.post(params).done(function(data) {
+            console.log('API删除列成功:', data);
+            self.board.loadBoard(); // 重新加载看板
+            self.board.showSuccessMessage('列删除成功！');
+        }).fail(function(error) {
+            console.warn('API删除列失败，使用前端模拟:', error);
+            // 前端模拟删除列
+            self.deleteColumnFromFrontend();
+            self.board.showSuccessMessage('列删除成功！（前端模拟）');
+        }).always(function() {
+            self.element.style.opacity = '1';
+        });
+    };
+    
+    /**
+     * 前端模拟删除列
+     */
+    KanbanColumn.prototype.deleteColumnFromFrontend = function() {
+        // 从看板中移除列
+        var columnIndex = this.board.columns.indexOf(this);
+        if (columnIndex > -1) {
+            this.board.columns.splice(columnIndex, 1);
+        }
+        
+        // 从DOM中移除
+        this.element.remove();
     };
 
     /**

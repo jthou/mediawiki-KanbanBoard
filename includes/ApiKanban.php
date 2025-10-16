@@ -38,6 +38,9 @@ class ApiKanban extends ApiBase {
             case 'addcolumn':
                 $this->addColumn( $params );
                 break;
+            case 'deletecolumn':
+                $this->deleteColumn( $params );
+                break;
             case 'test':
                 $this->test();
                 break;
@@ -132,6 +135,123 @@ class ApiKanban extends ApiBase {
         $column = $this->getColumnData( $columnId );
         $this->getResult()->addValue( null, 'column', $column );
         $this->getResult()->addValue( null, 'result', 'success' );
+    }
+    
+    /**
+     * 删除列
+     */
+    private function deleteColumn( $params ) {
+        $boardId = (int)$params['board_id'];
+        $columnId = (int)$params['column_id'];
+        $moveCardsTo = (int)($params['move_cards_to'] ?? 0); // 目标列ID，0表示删除卡片
+        
+        // 检查权限
+        $user = $this->getUser();
+        if ( !$this->checkBoardPermission( $user->getId(), $boardId, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 检查看板是否存在
+        $board = $this->getBoardData( $boardId );
+        if ( !$board ) {
+            $this->dieWithError( 'Board not found', 'boardnotfound' );
+        }
+        
+        // 检查列是否存在且属于该看板
+        $column = $this->getDB()->selectRow(
+            'kanban_statuses',
+            '*',
+            [ 'status_id' => $columnId, 'board_id' => $boardId ],
+            __METHOD__
+        );
+        
+        if ( !$column ) {
+            $this->dieWithError( 'Column not found', 'columnnotfound' );
+        }
+        
+        // 检查是否是最小列数（至少保留1列）
+        $columnCount = $this->getDB()->selectField(
+            'kanban_statuses',
+            'COUNT(*)',
+            [ 'board_id' => $boardId ],
+            __METHOD__
+        );
+        
+        if ( $columnCount <= 1 ) {
+            $this->dieWithError( 'Cannot delete the last column', 'lastcolumn' );
+        }
+        
+        // 处理列中的卡片
+        $this->handleCardsBeforeDeleteColumn( $columnId, $moveCardsTo );
+        
+        // 删除列
+        $this->getDB()->delete(
+            'kanban_statuses',
+            [ 'status_id' => $columnId ],
+            __METHOD__
+        );
+        
+        // 重新排序剩余列
+        $this->reorderColumns( $boardId );
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'message', 'Column deleted successfully' );
+    }
+    
+    /**
+     * 处理删除列前的卡片迁移
+     */
+    private function handleCardsBeforeDeleteColumn( $columnId, $moveCardsTo ) {
+        // 获取要删除列中的所有卡片
+        $cards = $this->getDB()->select(
+            'kanban_tasks',
+            '*',
+            [ 'status_id' => $columnId ],
+            __METHOD__
+        );
+        
+        if ( $moveCardsTo > 0 ) {
+            // 将卡片移动到目标列
+            foreach ( $cards as $card ) {
+                $this->getDB()->update(
+                    'kanban_tasks',
+                    [ 'status_id' => $moveCardsTo ],
+                    [ 'task_id' => $card->task_id ],
+                    __METHOD__
+                );
+            }
+        } else {
+            // 删除所有卡片
+            $this->getDB()->delete(
+                'kanban_tasks',
+                [ 'status_id' => $columnId ],
+                __METHOD__
+            );
+        }
+    }
+    
+    /**
+     * 重新排序列
+     */
+    private function reorderColumns( $boardId ) {
+        $columns = $this->getDB()->select(
+            'kanban_statuses',
+            [ 'status_id', 'status_order' ],
+            [ 'board_id' => $boardId ],
+            __METHOD__,
+            [ 'ORDER BY' => 'status_order ASC' ]
+        );
+        
+        $order = 1;
+        foreach ( $columns as $column ) {
+            $this->getDB()->update(
+                'kanban_statuses',
+                [ 'status_order' => $order ],
+                [ 'status_id' => $column->status_id ],
+                __METHOD__
+            );
+            $order++;
+        }
     }
     
     /**
@@ -456,6 +576,14 @@ class ApiKanban extends ApiBase {
                 ParamValidator::PARAM_REQUIRED => false
             ],
             'wip_limit' => [
+                ParamValidator::PARAM_TYPE => 'integer',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'column_id' => [
+                ParamValidator::PARAM_TYPE => 'integer',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'move_cards_to' => [
                 ParamValidator::PARAM_TYPE => 'integer',
                 ParamValidator::PARAM_REQUIRED => false
             ]

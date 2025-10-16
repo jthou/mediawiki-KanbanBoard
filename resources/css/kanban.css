@@ -97,6 +97,180 @@
     background: #2980b9;
 }
 
+/* 列操作按钮容器 */
+.kanban-column-actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+/* 删除列按钮 */
+.kanban-delete-column-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.kanban-delete-column-btn:hover {
+    background: #c0392b;
+}
+
+/* 删除列对话框 */
+.kanban-delete-column-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+}
+
+.kanban-delete-column-dialog .dialog-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.kanban-delete-column-dialog .dialog-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    min-width: 400px;
+    max-width: 500px;
+}
+
+.kanban-delete-column-dialog .dialog-header {
+    padding: 20px 20px 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.kanban-delete-column-dialog .dialog-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 18px;
+}
+
+.kanban-delete-column-dialog .dialog-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kanban-delete-column-dialog .dialog-close:hover {
+    color: #2c3e50;
+}
+
+.kanban-delete-column-dialog .dialog-body {
+    padding: 20px;
+}
+
+.kanban-delete-column-dialog .dialog-body p {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+}
+
+.kanban-delete-column-dialog .warning-text {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.kanban-delete-column-dialog .form-group {
+    margin-bottom: 20px;
+}
+
+.kanban-delete-column-dialog .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+.kanban-delete-column-dialog .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.kanban-delete-column-dialog .radio-group label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.kanban-delete-column-dialog .radio-group input[type="radio"] {
+    margin-right: 8px;
+}
+
+.kanban-delete-column-dialog select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.kanban-delete-column-dialog .dialog-footer {
+    padding: 0 20px 20px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.kanban-delete-column-dialog .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.kanban-delete-column-dialog .btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.kanban-delete-column-dialog .btn-secondary:hover {
+    background: #5a6268;
+}
+
+.kanban-delete-column-dialog .btn-danger {
+    background: #e74c3c;
+    color: white;
+}
+
+.kanban-delete-column-dialog .btn-danger:hover {
+    background: #c0392b;
+}
+
 /* 卡片容器 */
 .kanban-cards {
     padding: 15px;
