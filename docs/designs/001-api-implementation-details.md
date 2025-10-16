@@ -701,3 +701,5 @@ public function testAddColumnInvalidInput() {
 6. **测试用例和样式设计**
 
 通过这个设计，可以实现一个功能完整、用户友好的添加列功能。
+
+

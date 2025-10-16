@@ -32,7 +32,31 @@ class Hooks {
     public static function renderKanbanTag( $input, $args, $parser, $frame ) {
         $parser->getOutput()->addModules( [ 'ext.kanbanboard' ] );
         
-        $boardId = $args['board'] ?? 'default';
+        $boardId = $args['board'] ?? null;
+        $boardName = $args['name'] ?? null;
+
+        if ( $boardName && !$boardId ) {
+            // 通过 kanban_name 或 kanban_slug 查找（不区分大小写）
+            $dbr = MediaWikiServices::getInstance()->getDBLoadBalancerFactory()->getReplicaDatabase();
+            $needle = strtolower( $boardName );
+            $orConds = $dbr->makeList( [
+                'LOWER(kanban_name) = ' . $dbr->addQuotes( $needle ),
+                'LOWER(kanban_slug) = ' . $dbr->addQuotes( $needle )
+            ], LIST_OR );
+            $row = $dbr->selectRow(
+                'kanban_boards',
+                [ 'board_id' ],
+                [ $orConds ],
+                __METHOD__
+            );
+            if ( $row ) {
+                $boardId = (string)$row->board_id;
+            }
+        }
+
+        if ( !$boardId ) {
+            return '<div class="kanban-error">' . htmlspecialchars( wfMessage( 'kanbanboard-error' )->text() . ': board not found' ) . '</div>';
+        }
         $readOnly = isset( $args['readonly'] ) ? 'true' : 'false';
         
         $html = '<div class="kanban-board" data-board-id="' . htmlspecialchars( $boardId ) . '" data-readonly="' . $readOnly . '">';

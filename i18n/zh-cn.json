@@ -67,5 +67,8 @@
 	"kanbanboard-dialog-help-pixels": "像素",
 	"kanbanboard-no-columns": "暂无列，请先创建列",
 	"kanbanboard-no-cards": "暂无卡片",
-	"kanbanboard-wip-info": "($1/$2)"
+	"kanbanboard-wip-info": "($1/$2)",
+	"kanbanboard": "看板",
+	"kanbanboard-board-list": "已有看板",
+	"kanbanboard-accessible-boards": "可访问的看板"
 }

@@ -9,21 +9,22 @@
 namespace MediaWiki\Extension\KanbanBoard;
 
 use ApiBase;
+use ApiMain;
 use MediaWiki\MediaWikiServices;
 use Wikimedia\ParamValidator\ParamValidator;
-use Wikimedia\Rdbms\IConnectionProvider;
+use Wikimedia\Rdbms\LBFactory;
 
 class ApiKanban extends ApiBase {
     
-    private IConnectionProvider $dbProvider;
+    private LBFactory $dbLoadBalancerFactory;
     
-    public function __construct( ApiMain $main, $action, IConnectionProvider $dbProvider ) {
-        parent::__construct( $main, $action );
-        $this->dbProvider = $dbProvider;
+    public function __construct( ApiMain $mainModule, $moduleName, LBFactory $dbLoadBalancerFactory ) {
+        parent::__construct( $mainModule, $moduleName );
+        $this->dbLoadBalancerFactory = $dbLoadBalancerFactory;
     }
     
-    private function getDB() {
-        return $this->dbProvider->getMainLB()->getConnectionRef( DB_PRIMARY );
+    protected function getDB() {
+        return $this->dbLoadBalancerFactory->getMainLB()->getConnectionRef( DB_PRIMARY );
     }
     
     public function execute() {
@@ -112,17 +113,19 @@ class ApiKanban extends ApiBase {
         // 计算插入位置
         $order = $this->calculateColumnOrder( $boardId, $position );
         
-        // 插入新列
+        // 生成状态key并插入新状态（对外仍返回列结构）
+        $statusKey = strtolower( preg_replace( '/[^a-z0-9_]+/i', '_', $name ) );
+        if ( $statusKey === '' ) {
+            $statusKey = 'status_' . substr( md5( $name . microtime(true) ), 0, 8 );
+        }
+
         $columnId = $this->insertColumn( [
             'board_id' => $boardId,
-            'column_name' => $name,
-            'column_description' => $description,
-            'column_color' => $color,
-            'column_order' => $order,
-            'column_width' => $width,
-            'column_max_cards' => $maxCards,
-            'column_wip_limit' => $wipLimit,
-            'column_creator_id' => $user->getId()
+            'status_key' => $statusKey,
+            'status_name' => $name,
+            'status_order' => $order,
+            'color' => $color,
+            'wip_limit' => $wipLimit
         ] );
         
         // 返回新列信息
@@ -149,36 +152,65 @@ class ApiKanban extends ApiBase {
      * 获取看板的所有列
      */
     private function getBoardColumns( $boardId ) {
-        $columns = $this->getDB()->select(
-            'kanban_columns',
+        $statuses = $this->getDB()->select(
+            'kanban_statuses',
             '*',
             [ 'board_id' => $boardId ],
             __METHOD__,
-            [ 'ORDER BY' => 'column_order ASC' ]
+            [ 'ORDER BY' => 'status_order ASC' ]
         );
-        
+
         $columnsData = [];
-        foreach ( $columns as $column ) {
-            $columnData = (array)$column;
-            
-            // 获取卡片
-            $cards = $this->getDB()->select(
-                'kanban_cards',
+        foreach ( $statuses as $status ) {
+            $statusArr = (array)$status;
+
+            // 加载该状态下的任务并按旧结构返回为 cards
+            $tasks = $this->getDB()->select(
+                'kanban_tasks',
                 '*',
-                [ 'column_id' => $column->column_id ],
+                [ 'status_id' => $status->status_id ],
                 __METHOD__,
-                [ 'ORDER BY' => 'card_order ASC' ]
+                [ 'ORDER BY' => 'task_order ASC' ]
             );
-            
+
             $cardsData = [];
-            foreach ( $cards as $card ) {
-                $cardsData[] = (array)$card;
+            foreach ( $tasks as $task ) {
+                $t = (array)$task;
+                // 映射为旧字段命名，保持现有前端兼容
+                $cardsData[] = [
+                    'card_id' => $t['task_id'],
+                    'column_id' => $statusArr['status_id'],
+                    'card_title' => $t['title'],
+                    'card_description' => $t['description'],
+                    'card_assignee_id' => null,
+                    'card_creator_id' => $t['created_by'] ?? null,
+                    'card_priority' => $t['priority'],
+                    'card_color' => $t['color'],
+                    'card_order' => $t['task_order'],
+                    'card_due_date' => $t['due_date'],
+                    'card_created_at' => $t['created_at'],
+                    'card_updated_at' => $t['updated_at'],
+                ];
             }
-            
-            $columnData['cards'] = $cardsData;
-            $columnsData[] = $columnData;
+
+            // 将状态映射为旧的列结构
+            $columnsData[] = [
+                'column_id' => $statusArr['status_id'],
+                'board_id' => $statusArr['board_id'],
+                'column_name' => $statusArr['status_name'],
+                'column_description' => null,
+                'column_order' => $statusArr['status_order'],
+                'column_width' => 300,
+                'column_max_cards' => $statusArr['wip_limit'],
+                'column_is_collapsed' => 0,
+                'column_wip_limit' => $statusArr['wip_limit'],
+                'column_creator_id' => null,
+                'column_color' => $statusArr['color'],
+                'column_created_at' => $statusArr['created_at'],
+                'cards' => $cardsData,
+            ];
         }
-        
+
         return $columnsData;
     }
     
@@ -187,13 +219,30 @@ class ApiKanban extends ApiBase {
      */
     private function getColumnData( $columnId ) {
         $row = $this->getDB()->selectRow(
-            'kanban_columns',
+            'kanban_statuses',
             '*',
-            [ 'column_id' => $columnId ],
+            [ 'status_id' => $columnId ],
             __METHOD__
         );
-        
-        return $row ? (array)$row : null;
+
+        if ( !$row ) {
+            return null;
+        }
+        $r = (array)$row;
+        return [
+            'column_id' => $r['status_id'],
+            'board_id' => $r['board_id'],
+            'column_name' => $r['status_name'],
+            'column_description' => null,
+            'column_order' => $r['status_order'],
+            'column_width' => 300,
+            'column_max_cards' => $r['wip_limit'],
+            'column_is_collapsed' => 0,
+            'column_wip_limit' => $r['wip_limit'],
+            'column_creator_id' => null,
+            'column_color' => $r['color'],
+            'column_created_at' => $r['created_at'],
+        ];
     }
     
     /**
@@ -218,7 +267,7 @@ class ApiKanban extends ApiBase {
         // 检查用户权限
         $userPermission = $this->getDB()->selectField(
             'kanban_permissions',
-            'permission_level',
+            'permission_type',
             [
                 'board_id' => $boardId,
                 'user_id' => $userId
@@ -228,11 +277,11 @@ class ApiKanban extends ApiBase {
         
         switch ( $permission ) {
             case 'view':
-                return in_array( $userPermission, [ 'board_admin', 'board_editor', 'board_viewer' ] );
+                return in_array( $userPermission, [ 'admin', 'edit', 'view' ] );
             case 'edit':
-                return in_array( $userPermission, [ 'board_admin', 'board_editor' ] );
+                return in_array( $userPermission, [ 'admin', 'edit' ] );
             case 'admin':
-                return $userPermission === 'board_admin';
+                return $userPermission === 'admin';
             default:
                 return false;
         }
@@ -331,12 +380,9 @@ class ApiKanban extends ApiBase {
         try {
             // 将插入位置及之后的列顺序+1
             $db->update(
-                'kanban_columns',
-                [ 'column_order = column_order + 1' ],
-                [
-                    'board_id' => $boardId,
-                    'column_order >= ' . $insertPosition
-                ],
+                'kanban_statuses',
+                [ 'status_order = status_order + 1' ],
+                [ 'board_id' => $boardId, 'status_order >= ' . $insertPosition ],
                 __METHOD__
             );
             
@@ -352,19 +398,22 @@ class ApiKanban extends ApiBase {
      */
     private function insertColumn( $data ) {
         $db = $this->getDB();
+
+        // 写入新模型：kanban_statuses
+        $insertData = [
+            'board_id' => $data['board_id'],
+            'status_key' => $data['status_key'],
+            'status_name' => $data['status_name'],
+            'status_order' => $data['status_order'],
+            'color' => $data['color'],
+            'wip_limit' => $data['wip_limit'] ?? 0,
+        ];
+
         $db->startAtomic( __METHOD__ );
-        
         try {
-            $db->insert(
-                'kanban_columns',
-                $data,
-                __METHOD__
-            );
-            
+            $db->insert( 'kanban_statuses', $insertData, __METHOD__ );
             $columnId = $db->insertId();
-            
             $db->endAtomic( __METHOD__ );
-            
             return $columnId;
         } catch ( Exception $e ) {
             $db->rollback( __METHOD__ );
@@ -426,6 +475,6 @@ class ApiKanban extends ApiBase {
     }
     
     public function isReadMode() {
-        return true;
+        return false;
     }
 }

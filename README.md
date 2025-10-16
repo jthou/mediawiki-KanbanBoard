@@ -1,109 +1,46 @@
-# MediaWiki Kanban Board Extension
+# KanbanBoard Extension
 
-A MediaWiki extension that adds Kanban board functionality to MediaWiki pages.
+MediaWiki Kanban Board Extension - 看板管理扩展
 
-## Features
+## 功能特性
 
-- Create and manage Kanban boards
-- Add columns and cards to boards
-- Drag and drop functionality (planned)
-- User permissions and access control
-- Multi-language support (English and Chinese)
+- 创建和管理看板
+- 拖拽式任务管理
+- 多列状态管理
+- 权限控制
+- 嵌入到 wiki 页面
 
-## Installation
+## 安装
 
-1. Clone or download this extension to your MediaWiki `extensions/` directory
-2. Add the following to your `LocalSettings.php`:
+1. 将扩展文件放入 `extensions/KanbanBoard/` 目录
+2. 在 `LocalSettings.php` 中添加：
+   ```php
+   wfLoadExtension( 'KanbanBoard' );
+   ```
+3. 运行数据库更新脚本
 
-```php
-wfLoadExtension( 'KanbanBoard' );
+## 使用方法
+
+### 特殊页面
+访问 `特殊:KanbanBoard` 来管理看板
+
+### 嵌入看板
+在 wiki 页面中使用：
+```wikitext
+<kanban name="看板名称" />
 ```
 
-3. Run the database update script to create the necessary tables:
+## 开发
 
-```bash
-php maintenance/update.php
-```
+### 数据库结构
+- `kanban_boards` - 看板表
+- `kanban_statuses` - 状态列表
+- `kanban_tasks` - 任务表
+- `kanban_permissions` - 权限表
 
-## Usage
+### API
+扩展提供 REST API 接口用于前端交互
 
-### Creating a Kanban Board
+## 许可证
 
-Visit `Special:KanbanBoard` to create and manage boards.
-
-### Embedding a Kanban Board in a Page
-
-Use the following syntax in any wiki page:
-
-```wiki
-<kanban board="1" />
-```
-
-Replace `1` with the ID of your board.
-
-## Database Schema
-
-The extension creates the following tables:
-
-- `kanban_boards` - Stores board information
-- `kanban_columns` - Stores column information for each board
-- `kanban_cards` - Stores card information for each column
-- `kanban_permissions` - Stores user permissions for boards
-- `kanban_comments` - Stores comments on cards
-- `kanban_attachments` - Stores file attachments on cards
-
-## API
-
-The extension provides a REST API for managing boards:
-
-- `GET /api.php?action=kanban&kanban_action=getboard&board_id=1` - Get board data
-- `POST /api.php?action=kanban&kanban_action=createboard` - Create a new board
-- `POST /api.php?action=kanban&kanban_action=addcard` - Add a card to a column
-- `POST /api.php?action=kanban&kanban_action=movecard` - Move a card between columns
-
-## Configuration
-
-You can configure the extension in `LocalSettings.php`:
-
-```php
-// Maximum number of columns per board
-$wgKanbanBoardMaxColumns = 10;
-
-// Maximum number of cards per column
-$wgKanbanBoardMaxCardsPerColumn = 100;
-
-// Allow anonymous users to edit boards
-$wgKanbanBoardAllowAnonymousEdit = false;
-```
-
-## Development
-
-### File Structure
-
-```
-KanbanBoard/
-├── extension.json          # Extension metadata
-├── includes/              # PHP classes
-│   ├── ApiKanban.php      # API module
-│   ├── Hooks.php          # Hook handlers
-│   ├── KanbanBoard.php    # Board entity
-│   ├── KanbanColumn.php   # Column entity
-│   ├── KanbanCard.php     # Card entity
-│   └── SpecialKanbanBoard.php # Special page
-├── resources/             # Frontend assets
-│   ├── css/kanban.css     # Styles
-│   └── js/kanban.js       # JavaScript
-├── sql/                   # Database schema
-│   └── kanban_tables.sql  # Table definitions
-└── i18n/                  # Internationalization
-    ├── en.json            # English messages
-    └── zh-cn.json         # Chinese messages
-```
-
-## License
-
-This extension is licensed under the GNU General Public License v2 or later.
-
-## Author
-
-Created for MediaWiki project management and task tracking.
+GPL-2.0-or-later

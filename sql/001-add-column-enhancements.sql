@@ -57,3 +57,5 @@ SET column_width = 300,
     column_wip_limit = 0,
     column_creator_id = 1
 WHERE column_width IS NULL;
+
+

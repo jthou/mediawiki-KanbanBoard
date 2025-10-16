@@ -76,3 +76,5 @@ SET column_width = COALESCE(column_width, 300),
     column_color = COALESCE(column_color, '#3498db')
 WHERE column_width IS NULL OR column_max_cards IS NULL OR column_is_collapsed IS NULL 
    OR column_wip_limit IS NULL OR column_creator_id IS NULL OR column_color IS NULL;
+
+

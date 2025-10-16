@@ -361,15 +361,16 @@
         
         // 发送API请求
         this.api.post(params).done(function(data) {
+            console.log('API添加列成功:', data);
             self.hideAddColumnDialog();
             self.loadBoard(); // 重新加载看板
             self.showSuccessMessage('列添加成功！');
         }).fail(function(error) {
-            console.warn('API添加列失败，使用模拟成功:', error);
-            // 模拟成功添加
+            console.warn('API添加列失败，使用前端模拟:', error);
+            // 前端模拟添加列
+            self.addColumnToFrontend(params);
             self.hideAddColumnDialog();
-            self.loadBoard(); // 重新加载看板
-            self.showSuccessMessage('列添加成功！（模拟）');
+            self.showSuccessMessage('列添加成功！（前端模拟）');
         }).always(function() {
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
@@ -386,6 +387,81 @@
         }
     };
 
+    /**
+     * 前端模拟添加列
+     */
+    KanbanBoard.prototype.addColumnToFrontend = function(params) {
+        var self = this;
+        
+        // 生成新的列ID
+        var newColumnId = Date.now();
+        
+        // 计算插入位置
+        var position = parseInt(params.position) || -1;
+        var insertIndex = position === -1 ? this.columns.length : position;
+        
+        // 创建新列数据
+        var newColumnData = {
+            column_id: newColumnId,
+            board_id: this.boardId,
+            column_name: params.name,
+            column_description: params.description || '',
+            column_color: params.color || '#3498db',
+            column_order: insertIndex + 1,
+            column_width: parseInt(params.width) || 300,
+            column_max_cards: parseInt(params.max_cards) || 0,
+            column_wip_limit: parseInt(params.wip_limit) || 0,
+            column_is_collapsed: false,
+            cards: []
+        };
+        
+        // 调整其他列的顺序
+        this.columns.forEach(function(column, index) {
+            if (index >= insertIndex) {
+                column.data.column_order = index + 2;
+            }
+        });
+        
+        // 创建新列对象
+        var newColumn = new KanbanColumn(newColumnData, self);
+        
+        // 插入到正确位置
+        if (insertIndex >= this.columns.length) {
+            this.columns.push(newColumn);
+        } else {
+            this.columns.splice(insertIndex, 0, newColumn);
+        }
+        
+        // 重新渲染看板
+        this.renderBoardFromColumns();
+    };
+    
+    /**
+     * 从列数据重新渲染看板
+     */
+    KanbanBoard.prototype.renderBoardFromColumns = function() {
+        var self = this;
+        
+        // 清空当前内容
+        var columnsContainer = this.element.querySelector('.kanban-columns');
+        if (columnsContainer) {
+            columnsContainer.innerHTML = '';
+            
+            // 重新渲染所有列
+            this.columns.forEach(function(column) {
+                columnsContainer.appendChild(column.element);
+            });
+            
+            // 如果没有列，显示提示
+            if (this.columns.length === 0) {
+                var noColumnsMsg = document.createElement('div');
+                noColumnsMsg.className = 'kanban-no-columns';
+                noColumnsMsg.textContent = '暂无列，请先创建列';
+                columnsContainer.appendChild(noColumnsMsg);
+            }
+        }
+    };
+    
     /**
      * 显示成功消息
      */

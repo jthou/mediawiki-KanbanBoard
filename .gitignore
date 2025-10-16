@@ -1,0 +1,54 @@
+# MediaWiki Extension .gitignore
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Cache files
+cache/
+*.cache
+
+# Node modules (if using npm/yarn)
+node_modules/
+
+# Composer dependencies (if using composer)
+vendor/
+
+# Build artifacts
+dist/
+build/
+
+# Test coverage
+coverage/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.sqlite
+*.db
+
+# Backup files
+*.bak
+*.backup
