@@ -18,9 +18,9 @@ class ApiKanban extends ApiBase {
     
     private LBFactory $dbLoadBalancerFactory;
     
-    public function __construct( ApiMain $mainModule, $moduleName, LBFactory $dbLoadBalancerFactory ) {
+    public function __construct( ApiMain $mainModule, $moduleName ) {
         parent::__construct( $mainModule, $moduleName );
-        $this->dbLoadBalancerFactory = $dbLoadBalancerFactory;
+        $this->dbLoadBalancerFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
     }
     
     protected function getDB() {
@@ -40,6 +40,21 @@ class ApiKanban extends ApiBase {
                 break;
             case 'deletecolumn':
                 $this->deleteColumn( $params );
+                break;
+            case 'updatecolumn':
+                $this->updateColumn( $params );
+                break;
+            case 'reordercolumns':
+                $this->reorderColumns( $params );
+                break;
+            case 'createtask':
+                $this->createTask( $params );
+                break;
+            case 'updatetask':
+                $this->updateTask( $params );
+                break;
+            case 'deletetask':
+                $this->deleteTask( $params );
                 break;
             case 'test':
                 $this->test();
@@ -199,6 +214,79 @@ class ApiKanban extends ApiBase {
     }
     
     /**
+     * 更新列信息
+     */
+    private function updateColumn( $params ) {
+        $columnId = (int)$params['column_id'];
+        $name = trim( $params['name'] ?? '' );
+        $description = trim( $params['description'] ?? '' );
+        $color = $params['color'] ?? '#3498db';
+        $wipLimit = (int)($params['wip_limit'] ?? 0);
+        
+        // 检查权限
+        $user = $this->getUser();
+        
+        // 获取列信息
+        $column = $this->getDB()->selectRow(
+            'kanban_statuses',
+            '*',
+            [ 'status_id' => $columnId ],
+            __METHOD__
+        );
+        
+        if ( !$column ) {
+            $this->dieWithError( 'Column not found', 'columnnotfound' );
+        }
+        
+        if ( !$this->checkBoardPermission( $user->getId(), $column->board_id, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 验证输入
+        if ( empty( $name ) ) {
+            $this->dieWithError( 'Column name cannot be empty', 'emptyname' );
+        }
+        
+        if ( strlen( $name ) > 255 ) {
+            $this->dieWithError( 'Column name is too long', 'nametoolong' );
+        }
+        
+        // 检查名称是否重复（排除当前列）
+        $existingColumn = $this->getDB()->selectRow(
+            'kanban_statuses',
+            'status_id',
+            [ 'board_id' => $column->board_id, 'status_name' => $name, 'status_id != ' . $columnId ],
+            __METHOD__
+        );
+        
+        if ( $existingColumn ) {
+            $this->dieWithError( 'Column name already exists', 'duplicatename' );
+        }
+        
+        // 更新列信息
+        $result = $this->getDB()->update(
+            'kanban_statuses',
+            [
+                'status_name' => $name,
+                'color' => $color,
+                'wip_limit' => $wipLimit
+            ],
+            [ 'status_id' => $columnId ],
+            __METHOD__
+        );
+        
+        if ( !$result ) {
+            $this->dieWithError( 'Failed to update column', 'updatefailed' );
+        }
+        
+        // 返回更新后的列信息
+        $updatedColumn = $this->getColumnData( $columnId );
+        $this->getResult()->addValue( null, 'column', $updatedColumn );
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'message', 'Column updated successfully' );
+    }
+    
+    /**
      * 处理删除列前的卡片迁移
      */
     private function handleCardsBeforeDeleteColumn( $columnId, $moveCardsTo ) {
@@ -231,9 +319,84 @@ class ApiKanban extends ApiBase {
     }
     
     /**
-     * 重新排序列
+     * 重新排序列（拖拽排序）
      */
-    private function reorderColumns( $boardId ) {
+    private function reorderColumns( $params ) {
+        $boardId = (int)$params['board_id'];
+        $columnOrdersJson = $params['column_orders']; // JSON字符串格式
+        
+        // 添加调试信息
+        error_log( "KanbanBoard: reorderColumns called with board_id: $boardId" );
+        error_log( "KanbanBoard: column_orders JSON: $columnOrdersJson" );
+        
+        // 解析JSON参数
+        $columnOrders = json_decode( $columnOrdersJson, true );
+        
+        // 验证输入
+        if ( !is_array( $columnOrders ) || empty( $columnOrders ) ) {
+            error_log( "KanbanBoard: Invalid column orders data" );
+            $this->dieWithError( 'Invalid column orders', 'invalidorders' );
+        }
+        
+        error_log( "KanbanBoard: Parsed column orders: " . print_r( $columnOrders, true ) );
+        
+        // 检查权限
+        $user = $this->getUser();
+        if ( !$this->checkColumnPermission( $user->getId(), $boardId, 'edit' ) ) {
+            error_log( "KanbanBoard: Permission denied for user {$user->getId()} on board $boardId" );
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        $db = $this->getDB();
+        $db->startAtomic( __METHOD__ );
+        
+        try {
+            // 批量更新列顺序
+            foreach ( $columnOrders as $columnOrder ) {
+                $columnId = (int)$columnOrder['column_id'];
+                $newOrder = (int)$columnOrder['order'];
+                
+                error_log( "KanbanBoard: Updating column $columnId to order $newOrder" );
+                
+                // 验证列是否属于该看板
+                $exists = $db->selectField(
+                    'kanban_statuses',
+                    'status_id',
+                    [ 'status_id' => $columnId, 'board_id' => $boardId ],
+                    __METHOD__
+                );
+                
+                if ( !$exists ) {
+                    throw new Exception( "Column {$columnId} not found in board {$boardId}" );
+                }
+                
+                // 更新列顺序
+                $db->update(
+                    'kanban_statuses',
+                    [ 'status_order' => $newOrder ],
+                    [ 'status_id' => $columnId ],
+                    __METHOD__
+                );
+            }
+            
+            $db->endAtomic( __METHOD__ );
+            
+            error_log( "KanbanBoard: Column reordering completed successfully" );
+            
+            $this->getResult()->addValue( null, 'result', 'success' );
+            $this->getResult()->addValue( null, 'message', 'Columns reordered successfully' );
+            
+        } catch ( Exception $e ) {
+            $db->rollback( __METHOD__ );
+            error_log( "KanbanBoard: Error reordering columns: " . $e->getMessage() );
+            $this->dieWithError( 'Failed to reorder columns: ' . $e->getMessage(), 'reorderfailed' );
+        }
+    }
+    
+    /**
+     * 重新排序列（整理顺序）
+     */
+    private function normalizeColumnOrders( $boardId ) {
         $columns = $this->getDB()->select(
             'kanban_statuses',
             [ 'status_id', 'status_order' ],
@@ -252,6 +415,43 @@ class ApiKanban extends ApiBase {
             );
             $order++;
         }
+    }
+    
+    /**
+     * 检查列操作权限
+     */
+    private function checkColumnPermission( $userId, $boardId, $permission = 'view' ) {
+        $db = $this->getDB();
+        
+        // 检查是否是看板所有者
+        $isOwner = $db->selectField(
+            'kanban_boards',
+            'board_owner_id',
+            [ 'board_id' => $boardId ],
+            __METHOD__
+        ) == $userId;
+        
+        if ( $isOwner ) {
+            return true;
+        }
+        
+        // 检查用户权限
+        $userPermission = $db->selectField(
+            'kanban_permissions',
+            'role',
+            [ 'board_id' => $boardId, 'user_id' => $userId ],
+            __METHOD__
+        );
+        
+        if ( !$userPermission ) {
+            return false;
+        }
+        
+        $permissionLevels = [ 'view' => 1, 'edit' => 2, 'admin' => 3 ];
+        $userLevel = $permissionLevels[$userPermission] ?? 0;
+        $requiredLevel = $permissionLevels[$permission] ?? 1;
+        
+        return $userLevel >= $requiredLevel;
     }
     
     /**
@@ -300,6 +500,7 @@ class ApiKanban extends ApiBase {
                 $cardsData[] = [
                     'card_id' => $t['task_id'],
                     'column_id' => $statusArr['status_id'],
+                    'status_name' => $statusArr['status_name'],
                     'card_title' => $t['title'],
                     'card_description' => $t['description'],
                     'card_assignee_id' => null,
@@ -586,23 +787,277 @@ class ApiKanban extends ApiBase {
             'move_cards_to' => [
                 ParamValidator::PARAM_TYPE => 'integer',
                 ParamValidator::PARAM_REQUIRED => false
+            ],
+            'column_orders' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'task_id' => [
+                ParamValidator::PARAM_TYPE => 'integer',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'title' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'description' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'priority' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'due_date' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'status_id' => [
+                ParamValidator::PARAM_TYPE => 'integer',
+                ParamValidator::PARAM_REQUIRED => false
             ]
         ];
     }
     
     public function mustBePosted() {
-        return false;
+        $params = $this->extractRequestParams();
+        $action = $params['kanban_action'] ?? '';
+        
+        // 写操作需要POST请求
+        $writeActions = ['addcolumn', 'deletecolumn', 'updatecolumn', 'createtask', 'updatetask', 'deletetask'];
+        return in_array($action, $writeActions);
     }
     
     public function isWriteMode() {
-        return false;
+        $params = $this->extractRequestParams();
+        $action = $params['kanban_action'] ?? '';
+        
+        // 写操作需要返回true
+        $writeActions = ['addcolumn', 'deletecolumn', 'updatecolumn', 'createtask', 'updatetask', 'deletetask'];
+        return in_array($action, $writeActions);
     }
     
     public function needsToken() {
         return false;
     }
     
-    public function isReadMode() {
-        return false;
+    /**
+     * 创建任务
+     */
+    private function createTask( $params ) {
+        $boardId = (int)$params['board_id'];
+        $columnId = (int)$params['column_id'];
+        $title = trim( $params['title'] ?? '' );
+        $description = trim( $params['description'] ?? '' );
+        $priority = $params['priority'] ?? 'medium';
+        $color = $params['color'] ?? '#ffffff';
+        $dueDate = $params['due_date'] ?? null;
+        
+        // 检查权限
+        $user = $this->getUser();
+        if ( !$this->checkBoardPermission( $user->getId(), $boardId, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 验证输入
+        if ( empty( $title ) ) {
+            $this->dieWithError( 'Task title cannot be empty', 'emptytitle' );
+        }
+        
+        if ( strlen( $title ) > 500 ) {
+            $this->dieWithError( 'Task title is too long', 'titletoolong' );
+        }
+        
+        if ( !in_array( $priority, [ 'low', 'medium', 'high', 'urgent' ] ) ) {
+            $this->dieWithError( 'Invalid priority', 'invalidpriority' );
+        }
+        
+        // 检查列是否存在且属于该看板
+        $column = $this->getDB()->selectRow(
+            'kanban_statuses',
+            '*',
+            [ 'status_id' => $columnId, 'board_id' => $boardId ],
+            __METHOD__
+        );
+        
+        if ( !$column ) {
+            $this->dieWithError( 'Column not found', 'columnnotfound' );
+        }
+        
+        // 获取下一个任务顺序
+        $nextOrder = $this->getDB()->selectField(
+            'kanban_tasks',
+            'MAX(task_order) + 1',
+            [ 'status_id' => $columnId ],
+            __METHOD__
+        ) ?: 1;
+        
+        // 插入新任务
+        $taskId = $this->getDB()->insert(
+            'kanban_tasks',
+            [
+                'board_id' => $boardId,
+                'status_id' => $columnId,
+                'title' => $title,
+                'description' => $description ?: null,
+                'priority' => $priority,
+                'color' => $color,
+                'task_order' => $nextOrder,
+                'due_date' => $dueDate ?: null,
+                'created_by' => $user->getId(),
+                'updated_by' => $user->getId()
+            ],
+            __METHOD__
+        );
+        
+        if ( !$taskId ) {
+            $this->dieWithError( 'Failed to create task', 'createfailed' );
+        }
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'task_id', $taskId );
+        $this->getResult()->addValue( null, 'message', 'Task created successfully' );
+    }
+    
+    /**
+     * 更新任务
+     */
+    private function updateTask( $params ) {
+        $taskId = (int)$params['task_id'];
+        $title = trim( $params['title'] ?? '' );
+        $description = trim( $params['description'] ?? '' );
+        $priority = $params['priority'] ?? 'medium';
+        $color = $params['color'] ?? '#ffffff';
+        $dueDate = $params['due_date'] ?? null;
+        $statusId = (int)($params['status_id'] ?? 0);
+        
+        // 检查权限
+        $user = $this->getUser();
+        
+        // 获取任务信息
+        $task = $this->getDB()->selectRow(
+            'kanban_tasks',
+            '*',
+            [ 'task_id' => $taskId ],
+            __METHOD__
+        );
+        
+        if ( !$task ) {
+            $this->dieWithError( 'Task not found', 'tasknotfound' );
+        }
+        
+        if ( !$this->checkBoardPermission( $user->getId(), $task->board_id, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 验证输入
+        if ( empty( $title ) ) {
+            $this->dieWithError( 'Task title cannot be empty', 'emptytitle' );
+        }
+        
+        if ( strlen( $title ) > 500 ) {
+            $this->dieWithError( 'Task title is too long', 'titletoolong' );
+        }
+        
+        if ( !in_array( $priority, [ 'low', 'medium', 'high', 'urgent' ] ) ) {
+            $this->dieWithError( 'Invalid priority', 'invalidpriority' );
+        }
+        
+        // 如果状态ID发生变化，验证新状态是否有效
+        if ( $statusId > 0 && $statusId != $task->status_id ) {
+            $newStatus = $this->getDB()->selectRow(
+                'kanban_statuses',
+                '*',
+                [ 'status_id' => $statusId, 'board_id' => $task->board_id ],
+                __METHOD__
+            );
+            
+            if ( !$newStatus ) {
+                $this->dieWithError( 'Invalid status', 'invalidstatus' );
+            }
+            
+            // 获取新状态下的最大任务顺序
+            $maxOrder = $this->getDB()->selectField(
+                'kanban_tasks',
+                'MAX(task_order)',
+                [ 'status_id' => $statusId ],
+                __METHOD__
+            ) ?: 0;
+        }
+        
+        // 准备更新数据
+        $updateData = [
+            'title' => $title,
+            'description' => $description ?: null,
+            'priority' => $priority,
+            'color' => $color,
+            'due_date' => $dueDate ?: null,
+            'updated_by' => $user->getId()
+        ];
+        
+        // 如果状态发生变化，更新状态和顺序
+        if ( $statusId > 0 && $statusId != $task->status_id ) {
+            $updateData['status_id'] = $statusId;
+            $updateData['task_order'] = $maxOrder + 1;
+        }
+        
+        // 更新任务
+        $result = $this->getDB()->update(
+            'kanban_tasks',
+            $updateData,
+            [ 'task_id' => $taskId ],
+            __METHOD__
+        );
+        
+        if ( !$result ) {
+            $this->dieWithError( 'Failed to update task', 'updatefailed' );
+        }
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'message', 'Task updated successfully' );
+    }
+    
+    /**
+     * 删除任务
+     */
+    private function deleteTask( $params ) {
+        $taskId = (int)$params['task_id'];
+        
+        // 检查权限
+        $user = $this->getUser();
+        
+        // 获取任务信息
+        $task = $this->getDB()->selectRow(
+            'kanban_tasks',
+            '*',
+            [ 'task_id' => $taskId ],
+            __METHOD__
+        );
+        
+        if ( !$task ) {
+            $this->dieWithError( 'Task not found', 'tasknotfound' );
+        }
+        
+        if ( !$this->checkBoardPermission( $user->getId(), $task->board_id, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 软删除任务
+        $result = $this->getDB()->update(
+            'kanban_tasks',
+            [
+                'deleted_at' => $this->getDB()->timestamp(),
+                'updated_by' => $user->getId()
+            ],
+            [ 'task_id' => $taskId ],
+            __METHOD__
+        );
+        
+        if ( !$result ) {
+            $this->dieWithError( 'Failed to delete task', 'deletefailed' );
+        }
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'message', 'Task deleted successfully' );
     }
 }

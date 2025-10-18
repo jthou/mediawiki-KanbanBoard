@@ -5,6 +5,19 @@
  * @ingroup Extensions
  */
 
+/* 只读字段样式 */
+.readonly-field {
+    background-color: #f8f9fa !important;
+    color: #6c757d !important;
+    cursor: not-allowed !important;
+    border-color: #dee2e6 !important;
+}
+
+.readonly-field:focus {
+    box-shadow: none !important;
+    border-color: #dee2e6 !important;
+}
+
 /* 看板容器 */
 .kanban-board {
     background: #f8f9fa;
@@ -46,8 +59,8 @@
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    min-width: 300px;
-    max-width: 400px;
+    min-width: 250px;
+    max-width: 320px;
     border-top: 4px solid #3498db;
     display: flex;
     flex-direction: column;
@@ -62,11 +75,54 @@
     align-items: center;
 }
 
+/* 拖拽手柄 */
+.kanban-column-drag-handle {
+    cursor: move;
+    color: #6c757d;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 4px 8px;
+    margin-right: 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    background: rgba(108, 117, 125, 0.1);
+    border: 1px solid transparent;
+}
+
+.kanban-column-drag-handle:hover {
+    background: #e9ecef;
+    color: #495057;
+    transform: scale(1.1);
+    border-color: #dee2e6;
+}
+
+.kanban-column-drag-handle:active {
+    background: #dee2e6;
+    transform: scale(0.95);
+    border-color: #adb5bd;
+}
+
+/* 确保列本身不可拖拽 */
+.kanban-column {
+    cursor: default !important;
+}
+
+.kanban-column[draggable="true"] {
+    cursor: default !important;
+}
+
 .kanban-column-header h3 {
     margin: 0;
     color: #2c3e50;
     font-size: 16px;
     font-weight: 600;
+    flex: 1;
 }
 
 .kanban-wip-info {
@@ -104,6 +160,26 @@
     align-items: center;
 }
 
+/* 编辑列按钮 */
+.kanban-edit-column-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.kanban-edit-column-btn:hover {
+    background: #2980b9;
+}
+
 /* 删除列按钮 */
 .kanban-delete-column-btn {
     background: #e74c3c;
@@ -122,6 +198,86 @@
 
 .kanban-delete-column-btn:hover {
     background: #c0392b;
+}
+
+/* 编辑列对话框 */
+.kanban-column-edit-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.kanban-column-edit-dialog .dialog-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-column-edit-dialog .dialog-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.kanban-column-edit-dialog .dialog-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.kanban-column-edit-dialog .dialog-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.kanban-column-edit-dialog .dialog-close-btn:hover {
+    background: #f8f9fa;
+    color: #666;
+}
+
+.kanban-column-edit-dialog .kanban-column-form {
+    padding: 24px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.kanban-column-edit-dialog .dialog-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
 /* 删除列对话框 */
@@ -237,11 +393,192 @@
     font-size: 14px;
 }
 
+.dialog-footer {
+    padding: 20px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+    flex-shrink: 0;
+}
+
 .kanban-delete-column-dialog .dialog-footer {
     padding: 0 20px 20px 20px;
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+.dialog-footer .btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.dialog-footer .btn-primary:hover {
+    background: #2980b9;
+}
+
+.dialog-footer .btn-primary:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+}
+
+/* 拖拽相关样式 */
+.kanban-column {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.kanban-column[draggable="true"] {
+    cursor: move;
+}
+
+.kanban-column[draggable="true"]:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+/* 拖拽目标样式 */
+.kanban-column.kanban-drop-target {
+    border: 2px dashed #3498db;
+    background: rgba(52, 152, 219, 0.05);
+    transform: scale(1.02);
+}
+
+/* 拖拽指示器 */
+.kanban-drag-indicator {
+    height: 4px;
+    background: linear-gradient(90deg, #3498db, #2980b9);
+    border-radius: 2px;
+    margin: 8px 0;
+    opacity: 0.9;
+    animation: dragIndicatorPulse 1.5s infinite;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    position: relative;
+}
+
+.kanban-drag-indicator::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: -2px;
+    width: 8px;
+    height: 8px;
+    background: #3498db;
+    border-radius: 50%;
+    animation: dragIndicatorDot 1.5s infinite;
+}
+
+.kanban-drag-indicator::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: -2px;
+    width: 8px;
+    height: 8px;
+    background: #3498db;
+    border-radius: 50%;
+    animation: dragIndicatorDot 1.5s infinite 0.3s;
+}
+
+@keyframes dragIndicatorPulse {
+    0% { 
+        opacity: 0.9; 
+        transform: scaleX(1);
+    }
+    50% { 
+        opacity: 0.6; 
+        transform: scaleX(1.05);
+    }
+    100% { 
+        opacity: 0.9; 
+        transform: scaleX(1);
+    }
+}
+
+@keyframes dragIndicatorDot {
+    0% { 
+        opacity: 0.8; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.4; 
+        transform: scale(1.2);
+    }
+    100% { 
+        opacity: 0.8; 
+        transform: scale(1);
+    }
+}
+
+/* 消息提示样式 */
+.kanban-success-message,
+.kanban-error-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: messageSlideIn 0.3s ease-out;
+}
+
+.kanban-success-message {
+    background: #27ae60;
+}
+
+.kanban-error-message {
+    background: #e74c3c;
+}
+
+@keyframes messageSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .dialog-content {
+        width: 95%;
+        height: 90%;
+        max-width: none;
+    }
+    
+    .kanban-column-form,
+    .kanban-task-form {
+        padding: 16px;
+    }
+    
+    .dialog-header {
+        padding: 16px;
+    }
+    
+    .dialog-footer {
+        padding: 16px;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .dialog-footer .btn {
+        width: 100%;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 10px;
+    }
 }
 
 .kanban-delete-column-dialog .btn {
@@ -294,6 +631,12 @@
 .kanban-card:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
+    border-color: #3498db;
+}
+
+.kanban-card:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .kanban-card.priority-high {
@@ -305,6 +648,21 @@
     color: #2c3e50;
     margin-bottom: 5px;
     font-size: 14px;
+    position: relative;
+}
+
+.kanban-card-title::after {
+    content: '✏️';
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.kanban-card:hover .kanban-card-title::after {
+    opacity: 0.5;
 }
 
 .kanban-card-description {
@@ -331,20 +689,40 @@
 
 /* 添加列按钮 */
 .kanban-add-column-btn {
-    background: #27ae60;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 12px 20px;
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    margin-top: 20px;
-    transition: background-color 0.2s;
+    min-width: 250px;
+    max-width: 320px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin: 0;
+    flex-shrink: 0;
 }
 
 .kanban-add-column-btn:hover {
-    background: #229954;
+    background: #e9ecef;
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+.kanban-add-column-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.kanban-add-column-btn:active {
+    background: #dee2e6;
+    border-color: #6c757d;
 }
 
 /* 空状态 */
@@ -401,7 +779,8 @@
 }
 
 /* 添加列对话框样式 */
-.kanban-add-column-dialog {
+.kanban-add-column-dialog,
+.kanban-task-edit-dialog {
     position: fixed;
     top: 0;
     left: 0;
@@ -429,11 +808,14 @@
     background: white;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 500px;
+    width: 80%;
+    height: 80%;
+    max-width: 1000px;
     max-height: 90vh;
     overflow-y: auto;
     animation: dialogSlideIn 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
 }
 
 @keyframes dialogSlideIn {
@@ -455,6 +837,7 @@
     border-bottom: 1px solid #e9ecef;
     background: #f8f9fa;
     border-radius: 12px 12px 0 0;
+    flex-shrink: 0;
 }
 
 .dialog-header h3 {
@@ -485,12 +868,24 @@
     background: #e9ecef;
 }
 
-.kanban-column-form {
+.kanban-column-form,
+.kanban-task-form {
     padding: 24px;
+    flex: 1;
+    overflow-y: auto;
 }
 
 .form-group {
     margin-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.form-row .form-group {
+    flex: 1;
 }
 
 .form-group label {
@@ -523,7 +918,8 @@
 
 .form-group textarea {
     resize: vertical;
-    min-height: 60px;
+    min-height: 120px;
+    max-height: 300px;
 }
 
 .color-picker {
@@ -532,7 +928,8 @@
     gap: 12px;
 }
 
-.color-picker input[type="color"] {
+.color-picker input[type="color"],
+.form-group input[type="color"] {
     width: 50px;
     height: 40px;
     border: none;

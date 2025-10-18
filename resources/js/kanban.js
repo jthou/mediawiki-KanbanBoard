@@ -155,21 +155,24 @@
                 self.columns.push(column);
                 columnsContainer.appendChild(column.element);
             });
-        } else {
-            // 如果没有列，显示提示
+        }
+        
+        // 如果不是只读模式，在列容器中添加新列按钮
+        if (!this.readOnly) {
+            var addColumnBtn = this.createAddColumnButton();
+            columnsContainer.appendChild(addColumnBtn);
+        } else if (!boardData.columns || boardData.columns.length === 0) {
+            // 如果是只读模式且没有列，显示提示
             var noColumnsMsg = document.createElement('div');
             noColumnsMsg.className = 'kanban-no-columns';
-            noColumnsMsg.textContent = '暂无列，请先创建列';
+            noColumnsMsg.textContent = '暂无列';
             columnsContainer.appendChild(noColumnsMsg);
         }
         
         this.element.appendChild(columnsContainer);
         
-        // 如果不是只读模式，添加新列按钮
-        if (!this.readOnly) {
-            var addColumnBtn = this.createAddColumnButton();
-            this.element.appendChild(addColumnBtn);
-        }
+        // 绑定拖拽事件
+        this.bindColumnDragEvents();
     };
 
     /**
@@ -199,7 +202,18 @@
         var self = this;
         var button = document.createElement('button');
         button.className = 'kanban-add-column-btn';
-        button.textContent = '+ 添加列';
+        
+        // 创建按钮内容
+        var icon = document.createElement('div');
+        icon.style.fontSize = '32px';
+        icon.style.marginBottom = '8px';
+        icon.textContent = '+';
+        
+        var text = document.createElement('div');
+        text.textContent = '添加列';
+        
+        button.appendChild(icon);
+        button.appendChild(text);
         
         button.addEventListener('click', function() {
             self.showAddColumnDialog();
@@ -265,11 +279,12 @@
                             <input type="number" id="maxCards" name="max_cards" min="0" max="1000" value="0">
                             <span class="help-text">0表示无限制</span>
                         </div>
-                        <div class="form-group">
+                        <!-- WIP限制字段已隐藏 -->
+                        <!-- <div class="form-group">
                             <label for="wipLimit">WIP限制</label>
                             <input type="number" id="wipLimit" name="wip_limit" min="0" max="100" value="0">
                             <span class="help-text">0表示无限制</span>
-                        </div>
+                        </div> -->
                         <div class="form-actions">
                             <button type="button" class="btn-cancel">取消</button>
                             <button type="submit" class="btn-primary">添加列</button>
@@ -410,7 +425,7 @@
             column_order: insertIndex + 1,
             column_width: parseInt(params.width) || 300,
             column_max_cards: parseInt(params.max_cards) || 0,
-            column_wip_limit: parseInt(params.wip_limit) || 0,
+            column_wip_limit: 0,  // WIP限制已隐藏，固定为0
             column_is_collapsed: false,
             cards: []
         };
@@ -479,12 +494,372 @@
             }
         }, 3000);
     };
+    
+    /**
+     * 显示错误消息
+     */
+    KanbanBoard.prototype.showErrorMessage = function(message) {
+        var self = this;
+        var messageEl = document.createElement('div');
+        messageEl.className = 'kanban-error-message';
+        messageEl.textContent = message;
+        
+        this.element.appendChild(messageEl);
+        
+        setTimeout(function() {
+            if (messageEl.parentNode) {
+                messageEl.parentNode.removeChild(messageEl);
+            }
+        }, 5000);
+    };
 
     /**
      * 绑定事件
      */
     KanbanBoard.prototype.bindEvents = function() {
-        // 这里可以添加全局事件绑定
+        var self = this;
+        
+        // 绑定列拖拽事件
+        this.bindColumnDragEvents();
+    };
+    
+    /**
+     * 绑定列拖拽事件
+     */
+    KanbanBoard.prototype.bindColumnDragEvents = function() {
+        var self = this;
+        
+        // 为每个列添加拖拽功能（避免重复绑定）
+        this.columns.forEach(function(column) {
+            if (!column.element.dataset.dragInitialized) {
+                self.makeColumnDraggable(column);
+                column.element.dataset.dragInitialized = 'true';
+            }
+        });
+    };
+    
+    /**
+     * 使列可拖拽
+     */
+    KanbanBoard.prototype.makeColumnDraggable = function(column) {
+        var self = this;
+        
+        // 获取拖拽手柄
+        var dragHandle = column.element.querySelector('.kanban-column-drag-handle');
+        if (!dragHandle) {
+            console.warn('拖拽手柄未找到');
+            return;
+        }
+        
+        // 只设置拖拽手柄为可拖拽
+        dragHandle.draggable = true;
+        dragHandle.style.cursor = 'move';
+        
+        // 拖拽开始 - 只在拖拽手柄上监听
+        dragHandle.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', column.data.column_id);
+            e.dataTransfer.effectAllowed = 'move';
+            
+            // 添加拖拽样式
+            column.element.style.opacity = '0.5';
+            column.element.style.transform = 'rotate(2deg)';
+            
+            // 记录拖拽的列
+            self.draggedColumn = column;
+            self.draggedColumnId = column.data.column_id;
+            
+            // 为所有其他列添加拖拽目标样式
+            self.columns.forEach(function(col) {
+                if (col !== column) {
+                    col.element.classList.add('kanban-drop-target');
+                }
+            });
+        });
+        
+        // 拖拽结束 - 只在拖拽手柄上监听
+        dragHandle.addEventListener('dragend', function(e) {
+            // 移除拖拽样式
+            column.element.style.opacity = '1';
+            column.element.style.transform = '';
+            
+            // 清理状态
+            self.draggedColumn = null;
+            self.draggedColumnId = null;
+            
+            // 移除所有拖拽指示器和样式
+            self.removeDragIndicators();
+            self.removeDropTargetStyles();
+        });
+        
+        // 拖拽进入
+        column.element.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            if (self.draggedColumn && self.draggedColumn !== column) {
+                self.handleDragEnter(column, e);
+            }
+        });
+        
+        // 拖拽悬停
+        column.element.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            if (self.draggedColumn && self.draggedColumn !== column) {
+                self.handleDragOver(column, e);
+            }
+        });
+        
+        // 拖拽离开
+        column.element.addEventListener('dragleave', function(e) {
+            // 只有当鼠标真正离开元素时才移除指示器
+            if (!column.element.contains(e.relatedTarget)) {
+                self.removeDragIndicator(column);
+            }
+        });
+        
+        // 放置
+        column.element.addEventListener('drop', function(e) {
+            e.preventDefault();
+            
+            var draggedColumnId = e.dataTransfer.getData('text/plain');
+            var draggedColumn = self.findColumnById(draggedColumnId);
+            
+            if (draggedColumn && draggedColumn !== column) {
+                self.handleDrop(draggedColumn, column, e);
+            }
+            
+            self.removeDragIndicators();
+            self.removeDropTargetStyles();
+        });
+    };
+    
+    /**
+     * 处理拖拽进入
+     */
+    KanbanBoard.prototype.handleDragEnter = function(targetColumn, e) {
+        // 移除之前的指示器
+        this.removeDragIndicators();
+        
+        // 计算放置位置
+        var rect = targetColumn.element.getBoundingClientRect();
+        var midPoint = rect.left + rect.width / 2;
+        var position = e.clientX < midPoint ? 'before' : 'after';
+        
+        // 显示新的指示器
+        this.showDragIndicator(targetColumn, position);
+    };
+    
+    /**
+     * 处理拖拽悬停
+     */
+    KanbanBoard.prototype.handleDragOver = function(targetColumn, e) {
+        // 实时更新指示器位置
+        var rect = targetColumn.element.getBoundingClientRect();
+        var midPoint = rect.left + rect.width / 2;
+        var position = e.clientX < midPoint ? 'before' : 'after';
+        
+        // 更新指示器位置
+        this.updateDragIndicator(targetColumn, position);
+    };
+    
+    /**
+     * 处理放置
+     */
+    KanbanBoard.prototype.handleDrop = function(draggedColumn, targetColumn, e) {
+        // 计算最终放置位置
+        var rect = targetColumn.element.getBoundingClientRect();
+        var midPoint = rect.left + rect.width / 2;
+        var position = e.clientX < midPoint ? 'before' : 'after';
+        
+        // 执行移动
+        this.moveColumnToPosition(draggedColumn, targetColumn, position);
+    };
+    
+    /**
+     * 显示拖拽指示器
+     */
+    KanbanBoard.prototype.showDragIndicator = function(targetColumn, position) {
+        var indicator = document.createElement('div');
+        indicator.className = 'kanban-drag-indicator';
+        indicator.dataset.position = position;
+        indicator.dataset.targetColumn = targetColumn.data.column_id;
+        
+        var parent = targetColumn.element.parentNode;
+        if (position === 'before') {
+            parent.insertBefore(indicator, targetColumn.element);
+        } else {
+            parent.insertBefore(indicator, targetColumn.element.nextSibling);
+        }
+    };
+    
+    /**
+     * 更新拖拽指示器位置
+     */
+    KanbanBoard.prototype.updateDragIndicator = function(targetColumn, position) {
+        var existingIndicator = document.querySelector('.kanban-drag-indicator[data-target-column="' + targetColumn.data.column_id + '"]');
+        
+        if (existingIndicator) {
+            // 如果位置相同，不需要更新
+            if (existingIndicator.dataset.position === position) {
+                return;
+            }
+            
+            // 移除旧指示器
+            existingIndicator.remove();
+        }
+        
+        // 显示新位置的指示器
+        this.showDragIndicator(targetColumn, position);
+    };
+    
+    /**
+     * 移除拖拽指示器
+     */
+    KanbanBoard.prototype.removeDragIndicator = function(targetColumn) {
+        var indicator = targetColumn.element.previousSibling;
+        if (indicator && indicator.classList.contains('kanban-drag-indicator')) {
+            indicator.remove();
+        }
+        
+        indicator = targetColumn.element.nextSibling;
+        if (indicator && indicator.classList.contains('kanban-drag-indicator')) {
+            indicator.remove();
+        }
+    };
+    
+    /**
+     * 移除所有拖拽指示器
+     */
+    KanbanBoard.prototype.removeDragIndicators = function() {
+        var indicators = document.querySelectorAll('.kanban-drag-indicator');
+        indicators.forEach(function(indicator) {
+            indicator.remove();
+        });
+    };
+    
+    /**
+     * 移除拖拽目标样式
+     */
+    KanbanBoard.prototype.removeDropTargetStyles = function() {
+        this.columns.forEach(function(column) {
+            column.element.classList.remove('kanban-drop-target');
+        });
+    };
+    
+    /**
+     * 根据ID查找列
+     */
+    KanbanBoard.prototype.findColumnById = function(columnId) {
+        for (var i = 0; i < this.columns.length; i++) {
+            if (this.columns[i].data.column_id == columnId) {
+                return this.columns[i];
+            }
+        }
+        return null;
+    };
+    
+    /**
+     * 移动列到指定位置
+     */
+    KanbanBoard.prototype.moveColumnToPosition = function(draggedColumn, targetColumn, position) {
+        var self = this;
+        
+        // 计算新的位置
+        var draggedIndex = this.columns.indexOf(draggedColumn);
+        var targetIndex = this.columns.indexOf(targetColumn);
+        
+        if (draggedIndex === -1 || targetIndex === -1) {
+            return;
+        }
+        
+        // 从数组中移除拖拽的列
+        this.columns.splice(draggedIndex, 1);
+        
+        // 重新计算目标位置（因为数组已经改变）
+        var insertIndex = targetIndex;
+        if (draggedIndex < targetIndex) {
+            insertIndex = targetIndex - 1;
+        }
+        
+        // 根据位置调整插入索引
+        if (position === 'after') {
+            insertIndex = insertIndex + 1;
+        }
+        
+        // 确保索引在有效范围内
+        insertIndex = Math.max(0, Math.min(insertIndex, this.columns.length));
+        
+        // 插入到新位置
+        this.columns.splice(insertIndex, 0, draggedColumn);
+        
+        // 重新渲染列
+        this.renderColumns();
+        
+        // 发送API请求保存新顺序
+        this.saveColumnOrder();
+    };
+    
+    /**
+     * 重新渲染列
+     */
+    KanbanBoard.prototype.renderColumns = function() {
+        var columnsContainer = this.element.querySelector('.kanban-columns');
+        if (!columnsContainer) return;
+        
+        // 移除添加列按钮（如果存在）
+        var addColumnBtn = columnsContainer.querySelector('.kanban-add-column-btn');
+        if (addColumnBtn) {
+            addColumnBtn.remove();
+        }
+        
+        // 重新排列列元素（不重新创建）
+        this.columns.forEach(function(column) {
+            columnsContainer.appendChild(column.element);
+        });
+        
+        // 重新添加新列按钮
+        if (!this.readOnly) {
+            var newAddColumnBtn = this.createAddColumnButton();
+            columnsContainer.appendChild(newAddColumnBtn);
+        }
+    };
+    
+    /**
+     * 保存列顺序到服务器
+     */
+    KanbanBoard.prototype.saveColumnOrder = function() {
+        var self = this;
+        
+        // 构建列顺序数据
+        var columnOrders = this.columns.map(function(column, index) {
+            return {
+                column_id: column.data.column_id,
+                order: index + 1
+            };
+        });
+        
+        console.log('发送列顺序数据:', columnOrders);
+        
+        // 发送API请求
+        var params = {
+            action: 'kanban',
+            kanban_action: 'reordercolumns',
+            board_id: this.boardId,
+            column_orders: JSON.stringify(columnOrders)
+        };
+        
+        console.log('API请求参数:', params);
+        
+        this.api.post(params).done(function(data) {
+            console.log('列顺序保存成功:', data);
+            self.showSuccessMessage('列顺序已更新');
+        }).fail(function(error) {
+            console.error('保存列顺序失败:', error);
+            self.showErrorMessage('保存列顺序失败，请刷新页面重试');
+            
+            // 失败时重新加载看板
+            self.loadBoard();
+        });
     };
 
     /**
@@ -526,24 +901,31 @@
         this.element = document.createElement('div');
         this.element.className = 'kanban-column';
         this.element.style.borderTopColor = this.data.column_color || '#3498db';
-        this.element.style.width = (this.data.column_width || 300) + 'px';
+        this.element.style.width = (this.data.column_width || 250) + 'px';
         this.element.dataset.columnId = this.data.column_id;
         
         // 列头部
         var header = document.createElement('div');
         header.className = 'kanban-column-header';
         
+        // 拖拽手柄
+        var dragHandle = document.createElement('div');
+        dragHandle.className = 'kanban-column-drag-handle';
+        dragHandle.innerHTML = '⋮⋮';
+        dragHandle.title = '拖拽移动列';
+        header.appendChild(dragHandle);
+        
         var title = document.createElement('h3');
         title.textContent = this.data.column_name || '未命名列';
         header.appendChild(title);
         
-        // 显示WIP限制
-        if (this.data.column_wip_limit > 0) {
-            var wipInfo = document.createElement('span');
-            wipInfo.className = 'kanban-wip-info';
-            wipInfo.textContent = '(' + this.data.cards.length + '/' + this.data.column_wip_limit + ')';
-            header.appendChild(wipInfo);
-        }
+        // 显示WIP限制（已隐藏）
+        // if (this.data.column_wip_limit > 0) {
+        //     var wipInfo = document.createElement('span');
+        //     wipInfo.className = 'kanban-wip-info';
+        //     wipInfo.textContent = '(' + this.data.cards.length + '/' + this.data.column_wip_limit + ')';
+        //     header.appendChild(wipInfo);
+        // }
         
         // 如果不是只读模式，添加操作按钮
         if (!this.board.readOnly) {
@@ -560,6 +942,16 @@
                 self.showAddCardDialog();
             });
             
+            // 编辑列按钮
+            var editBtn = document.createElement('button');
+            editBtn.className = 'kanban-edit-column-btn';
+            editBtn.textContent = '✎';
+            editBtn.title = '编辑列';
+            
+            editBtn.addEventListener('click', function() {
+                self.showEditColumnDialog();
+            });
+            
             // 删除列按钮
             var deleteBtn = document.createElement('button');
             deleteBtn.className = 'kanban-delete-column-btn';
@@ -571,6 +963,7 @@
             });
             
             actionsContainer.appendChild(addCardBtn);
+            actionsContainer.appendChild(editBtn);
             actionsContainer.appendChild(deleteBtn);
             header.appendChild(actionsContainer);
         }
@@ -613,12 +1006,491 @@
      */
     KanbanColumn.prototype.showAddCardDialog = function() {
         var self = this;
-        var title = prompt('请输入卡片标题:');
+        this.createAddTaskDialog();
+    };
+
+    /**
+     * 创建添加任务对话框
+     */
+    KanbanColumn.prototype.createAddTaskDialog = function() {
+        var self = this;
         
-        if (title && title.trim()) {
-            // 模拟添加卡片
-            alert('添加卡片功能暂时不可用，请等待API修复');
+        // 创建对话框容器
+        var dialog = document.createElement('div');
+        dialog.className = 'kanban-task-edit-dialog';
+        dialog.innerHTML = `
+            <div class="dialog-overlay"></div>
+            <div class="dialog-content">
+                <div class="dialog-header">
+                    <h3>创建新任务</h3>
+                    <button class="dialog-close" type="button">&times;</button>
+                </div>
+                <form class="kanban-task-form">
+                    <div class="form-group">
+                        <label for="task-title">任务标题 *</label>
+                        <input type="text" id="task-title" name="title" 
+                               maxlength="500" required placeholder="请输入任务标题">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-description">任务描述</label>
+                        <textarea id="task-description" name="description" rows="4" 
+                                  placeholder="请输入任务详细描述"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-priority">优先级</label>
+                            <select id="task-priority" name="priority">
+                                <option value="low">低</option>
+                                <option value="medium" selected>中</option>
+                                <option value="high">高</option>
+                                <option value="urgent">紧急</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="task-color">颜色</label>
+                            <input type="color" id="task-color" name="color" value="#ffffff">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-due-date">截止日期</label>
+                        <input type="datetime-local" id="task-due-date" name="due_date">
+                    </div>
+                    
+                    <div class="dialog-footer">
+                        <button type="button" class="btn btn-secondary cancel-btn">取消</button>
+                        <button type="submit" class="btn btn-primary save-btn">创建任务</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        // 绑定事件
+        this.bindAddTaskDialogEvents(dialog);
+        
+        // 显示对话框
+        dialog.style.display = 'block';
+        
+        // 聚焦到标题输入框
+        setTimeout(function() {
+            dialog.querySelector('#task-title').focus();
+        }, 100);
+    };
+
+    /**
+     * 绑定添加任务对话框事件
+     */
+    KanbanColumn.prototype.bindAddTaskDialogEvents = function(dialog) {
+        var self = this;
+        var form = dialog.querySelector('.kanban-task-form');
+        var cancelBtn = dialog.querySelector('.cancel-btn');
+        var closeBtn = dialog.querySelector('.dialog-close');
+        var overlay = dialog.querySelector('.dialog-overlay');
+        
+        // 关闭对话框
+        function closeDialog() {
+            dialog.remove();
         }
+        
+        // 取消按钮
+        cancelBtn.addEventListener('click', closeDialog);
+        
+        // 关闭按钮
+        closeBtn.addEventListener('click', closeDialog);
+        
+        // 点击遮罩层关闭
+        overlay.addEventListener('click', closeDialog);
+        
+        // ESC键关闭
+        dialog.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDialog();
+            }
+        });
+        
+        // 表单提交
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            self.createTask(form);
+            closeDialog();
+        });
+    };
+
+    /**
+     * 创建新任务
+     */
+    KanbanColumn.prototype.createTask = function(form) {
+        var self = this;
+        var formData = new FormData(form);
+        
+        var taskData = {
+            column_id: this.data.column_id,
+            title: formData.get('title').trim(),
+            description: formData.get('description').trim(),
+            priority: formData.get('priority'),
+            color: formData.get('color'),
+            due_date: formData.get('due_date') || null
+        };
+        
+        // 验证数据
+        if (!taskData.title) {
+            alert('任务标题不能为空');
+            return;
+        }
+        
+        if (taskData.title.length > 500) {
+            alert('任务标题不能超过500个字符');
+            return;
+        }
+        
+        // 显示加载状态
+        var saveBtn = form.querySelector('.save-btn');
+        var originalText = saveBtn.textContent;
+        saveBtn.textContent = '创建中...';
+        saveBtn.disabled = true;
+        
+        // 调用API创建任务
+        this.createTaskAPI(taskData)
+            .then(function(response) {
+                if (response.result === 'success') {
+                    // 创建新的卡片元素
+                    var newCardData = {
+                        card_id: response.task_id,
+                        column_id: self.data.column_id,
+                        card_title: taskData.title,
+                        card_description: taskData.description,
+                        card_priority: taskData.priority,
+                        card_color: taskData.color,
+                        card_due_date: taskData.due_date,
+                        card_order: self.cards.length,
+                        card_created_at: new Date().toISOString()
+                    };
+                    
+                    // 创建卡片对象并添加到列中
+                    var newCard = new KanbanCard(newCardData, self);
+                    self.cards.push(newCard);
+                    
+                    // 移除"暂无卡片"提示
+                    var noCardsMsg = self.cardsContainer.querySelector('.kanban-no-cards');
+                    if (noCardsMsg) {
+                        noCardsMsg.remove();
+                    }
+                    
+                    // 添加新卡片到DOM
+                    self.cardsContainer.appendChild(newCard.element);
+                    
+                    // 显示成功消息
+                    self.showSuccessMessage('任务创建成功');
+                } else {
+                    alert('创建失败：' + (response.message || '未知错误'));
+                }
+            })
+            .catch(function(error) {
+                console.error('创建任务失败:', error);
+                alert('创建失败，请稍后重试');
+            })
+            .finally(function() {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+            });
+    };
+
+    /**
+     * 调用创建任务API
+     */
+    KanbanColumn.prototype.createTaskAPI = function(taskData) {
+        var self = this;
+        return new Promise(function(resolve, reject) {
+            var params = new URLSearchParams({
+                action: 'kanban',
+                format: 'json',
+                kanban_action: 'createtask',
+                board_id: self.board.boardId,
+                column_id: taskData.column_id,
+                title: taskData.title,
+                description: taskData.description,
+                priority: taskData.priority,
+                color: taskData.color,
+                due_date: taskData.due_date || ''
+            });
+            
+            // 添加用户认证
+            if (mw.user.isAnon()) {
+                reject(new Error('需要登录才能创建任务'));
+                return;
+            }
+            
+            fetch(mw.config.get('wgScriptPath') + '/api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    reject(new Error(data.error.info || 'API error'));
+                } else {
+                    resolve(data);
+                }
+            })
+            .catch(function(error) {
+                reject(error);
+            });
+        });
+    };
+
+    /**
+     * 显示成功消息
+     */
+    KanbanColumn.prototype.showSuccessMessage = function(message) {
+        var messageEl = document.createElement('div');
+        messageEl.className = 'kanban-success-message';
+        messageEl.textContent = message;
+        
+        document.body.appendChild(messageEl);
+        
+        setTimeout(function() {
+            messageEl.remove();
+        }, 3000);
+    };
+    
+    /**
+     * 显示编辑列对话框
+     */
+    KanbanColumn.prototype.showEditColumnDialog = function() {
+        var self = this;
+        this.createEditColumnDialog();
+    };
+    
+    /**
+     * 创建编辑列对话框
+     */
+    KanbanColumn.prototype.createEditColumnDialog = function() {
+        var self = this;
+        
+        // 移除现有对话框
+        var existingDialog = document.querySelector('.kanban-column-edit-dialog');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+        
+        // 创建对话框
+        var dialog = document.createElement('div');
+        dialog.className = 'kanban-column-edit-dialog';
+        dialog.innerHTML = `
+            <div class="dialog-content">
+                <div class="dialog-header">
+                    <h3>编辑列</h3>
+                    <button class="dialog-close-btn" type="button">×</button>
+                </div>
+                <form class="kanban-column-form">
+                    <div class="form-group">
+                        <label for="column-name">列名称 *</label>
+                        <input type="text" id="column-name" name="name" value="${this.data.column_name || ''}" 
+                               maxlength="255" required placeholder="请输入列名称">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="column-color">列颜色</label>
+                        <div class="color-picker">
+                            <input type="color" id="column-color" name="color" value="${this.data.column_color || '#3498db'}">
+                        </div>
+                    </div>
+                    
+                    <!-- WIP限制字段已隐藏 -->
+                    <!-- <div class="form-group">
+                        <label for="column-wip-limit">WIP限制</label>
+                        <input type="number" id="column-wip-limit" name="wip_limit" 
+                               value="${this.data.column_wip_limit || 0}" min="0" max="999" 
+                               placeholder="0表示无限制">
+                    </div> -->
+                    
+                    <div class="dialog-footer">
+                        <button type="button" class="btn btn-secondary cancel-btn">取消</button>
+                        <button type="submit" class="btn btn-primary save-btn">保存更改</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        this.bindEditColumnDialogEvents(dialog);
+    };
+    
+    /**
+     * 绑定编辑列对话框事件
+     */
+    KanbanColumn.prototype.bindEditColumnDialogEvents = function(dialog) {
+        var self = this;
+        var form = dialog.querySelector('.kanban-column-form');
+        var closeBtn = dialog.querySelector('.dialog-close-btn');
+        var cancelBtn = dialog.querySelector('.cancel-btn');
+        
+        // 关闭按钮
+        closeBtn.addEventListener('click', function() {
+            dialog.remove();
+        });
+        
+        // 取消按钮
+        cancelBtn.addEventListener('click', function() {
+            dialog.remove();
+        });
+        
+        // 点击背景关闭
+        dialog.addEventListener('click', function(e) {
+            if (e.target === dialog) {
+                dialog.remove();
+            }
+        });
+        
+        // 表单提交
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            self.updateColumn(form);
+        });
+    };
+    
+    /**
+     * 更新列信息
+     */
+    KanbanColumn.prototype.updateColumn = function(form) {
+        var self = this;
+        var formData = new FormData(form);
+        
+        var columnData = {
+            column_id: this.data.column_id,
+            name: formData.get('name').trim(),
+            color: formData.get('color'),
+            wip_limit: 0  // WIP限制已隐藏，固定为0
+        };
+        
+        // 验证数据
+        if (!columnData.name) {
+            alert('列名称不能为空');
+            return;
+        }
+        
+        // 显示保存状态
+        var saveBtn = form.querySelector('.save-btn');
+        var originalText = saveBtn.textContent;
+        saveBtn.textContent = '保存中...';
+        saveBtn.disabled = true;
+        
+        // 调用API更新列
+        this.updateColumnAPI(columnData)
+            .then(function(response) {
+                if (response.result === 'success') {
+                    // 更新本地数据
+                    self.data.column_name = columnData.name;
+                    self.data.column_color = columnData.color;
+                    self.data.column_wip_limit = 0;  // WIP限制已隐藏，固定为0
+                    
+                    // 重新渲染列
+                    self.updateColumnDisplay();
+                    
+                    // 关闭对话框
+                    var dialog = document.querySelector('.kanban-column-edit-dialog');
+                    if (dialog) {
+                        dialog.remove();
+                    }
+                    
+                    // 显示成功消息
+                    self.showSuccessMessage('列已更新');
+                } else {
+                    alert('更新失败：' + (response.message || '未知错误'));
+                }
+            })
+            .catch(function(error) {
+                console.error('更新列失败:', error);
+                alert('更新失败，请稍后重试');
+            })
+            .finally(function() {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+            });
+    };
+    
+    /**
+     * 调用更新列API
+     */
+    KanbanColumn.prototype.updateColumnAPI = function(columnData) {
+        var self = this;
+        return new Promise(function(resolve, reject) {
+            var params = new URLSearchParams({
+                action: 'kanban',
+                format: 'json',
+                kanban_action: 'updatecolumn',
+                column_id: columnData.column_id,
+                name: columnData.name,
+                color: columnData.color,
+                wip_limit: 0  // WIP限制已隐藏，固定为0
+            });
+            
+            // 添加用户认证
+            if (mw.user.isAnon()) {
+                reject(new Error('需要登录才能更新列'));
+                return;
+            }
+            
+            fetch(mw.config.get('wgScriptPath') + '/api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params.toString()
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                resolve(data);
+            })
+            .catch(function(error) {
+                reject(error);
+            });
+        });
+    };
+    
+    /**
+     * 更新列显示
+     */
+    KanbanColumn.prototype.updateColumnDisplay = function() {
+        // 更新列标题
+        var title = this.element.querySelector('.kanban-column-header h3');
+        if (title) {
+            title.textContent = this.data.column_name || '未命名列';
+        }
+        
+        // 更新列颜色
+        this.element.style.borderTopColor = this.data.column_color || '#3498db';
+        
+        // 更新WIP信息（已隐藏）
+        // var wipInfo = this.element.querySelector('.kanban-wip-info');
+        // if (this.data.column_wip_limit > 0) {
+        //     if (!wipInfo) {
+        //         wipInfo = document.createElement('span');
+        //         wipInfo.className = 'kanban-wip-info';
+        //         var header = this.element.querySelector('.kanban-column-header');
+        //         if (header) {
+        //             header.appendChild(wipInfo);
+        //         }
+        //     }
+        //     wipInfo.textContent = '(' + this.cards.length + '/' + this.data.column_wip_limit + ')';
+        // } else if (wipInfo) {
+        //     wipInfo.remove();
+        // }
     };
     
     /**
@@ -680,8 +1552,8 @@
         
         var dialog = document.getElementById('deleteColumnDialog');
         var cardActionRadios = dialog.querySelectorAll('input[name="cardAction"]');
-        var targetColumnGroup = dialog.getElementById('targetColumnGroup');
-        var targetColumnSelect = dialog.getElementById('targetColumn');
+        var targetColumnGroup = dialog.querySelector('#targetColumnGroup');
+        var targetColumnSelect = dialog.querySelector('#targetColumn');
         
         // 切换卡片处理方式
         cardActionRadios.forEach(function(radio) {
@@ -827,10 +1699,79 @@
             this.element.appendChild(editBtn);
         }
         
-        // 添加点击事件
-        this.element.addEventListener('click', function() {
-            self.showCardDetails();
+        // 添加点击事件 - 直接打开编辑对话框
+        this.element.addEventListener('click', function(e) {
+            // 如果点击的是编辑按钮，不触发卡片点击事件
+            if (e.target.classList.contains('kanban-card-edit')) {
+                return;
+            }
+            self.showEditDialog();
         });
+    };
+
+    /**
+     * 移动任务到新状态
+     */
+    KanbanCard.prototype.moveToNewStatus = function(newStatusId, taskData) {
+        var self = this;
+        
+        // 找到目标列
+        var targetColumn = null;
+        if (self.board && self.board.columns) {
+            self.board.columns.forEach(function(column) {
+                if (column.column_id == newStatusId) {
+                    targetColumn = column;
+                }
+            });
+        }
+        
+        if (!targetColumn) {
+            console.error('目标状态不存在:', newStatusId);
+            return;
+        }
+        
+        // 更新任务数据
+        self.data.card_title = taskData.title;
+        self.data.card_description = taskData.description;
+        self.data.card_priority = taskData.priority;
+        self.data.card_color = taskData.color;
+        self.data.card_due_date = taskData.due_date;
+        self.data.column_id = newStatusId;
+        self.data.status_name = targetColumn.column_name;
+        
+        // 从当前列移除卡片
+        var currentColumn = self.column;
+        if (currentColumn && currentColumn.element) {
+            currentColumn.element.removeChild(self.element);
+        }
+        
+        // 添加到目标列
+        var targetColumnElement = document.querySelector('[data-column-id="' + newStatusId + '"] .kanban-column-cards');
+        if (targetColumnElement) {
+            targetColumnElement.appendChild(self.element);
+            self.column = targetColumn;
+        }
+        
+        // 重新渲染卡片
+        self.updateCardDisplay();
+    };
+
+    /**
+     * 获取状态选项HTML
+     */
+    KanbanCard.prototype.getStatusOptions = function() {
+        var self = this;
+        var options = '';
+        
+        // 从看板数据中获取所有列（状态）
+        if (self.board && self.board.columns) {
+            self.board.columns.forEach(function(column) {
+                var selected = column.column_id == self.data.column_id ? 'selected' : '';
+                options += `<option value="${column.column_id}" ${selected}>${column.column_name}</option>`;
+            });
+        }
+        
+        return options;
     };
 
     /**
@@ -838,27 +1779,408 @@
      */
     KanbanCard.prototype.showEditDialog = function() {
         var self = this;
-        var newTitle = prompt('编辑卡片标题:', this.data.card_title);
+        this.createEditDialog();
+    };
+
+    /**
+     * 创建任务编辑对话框
+     */
+    KanbanCard.prototype.createEditDialog = function() {
+        var self = this;
         
-        if (newTitle && newTitle !== this.data.card_title) {
-            // 模拟更新卡片
-            alert('编辑卡片功能暂时不可用，请等待API修复');
+        // 创建对话框容器
+        var dialog = document.createElement('div');
+        dialog.className = 'kanban-task-edit-dialog';
+        dialog.innerHTML = `
+            <div class="dialog-overlay"></div>
+            <div class="dialog-content">
+                <div class="dialog-header">
+                    <h3>任务详情</h3>
+                    <button class="dialog-close" type="button">&times;</button>
+                </div>
+                <form class="kanban-task-form">
+                    <div class="form-group">
+                        <label for="task-title">任务标题 *</label>
+                        <input type="text" id="task-title" name="title" value="${this.data.card_title || ''}" 
+                               maxlength="500" required placeholder="请输入任务标题">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-status">任务状态</label>
+                        <select id="task-status" name="status_id">
+                            ${this.getStatusOptions()}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-description">任务描述</label>
+                        <textarea id="task-description" name="description" rows="4" 
+                                  placeholder="请输入任务详细描述">${this.data.card_description || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-priority">优先级</label>
+                            <select id="task-priority" name="priority">
+                                <option value="low" ${this.data.card_priority === 'low' ? 'selected' : ''}>低</option>
+                                <option value="medium" ${this.data.card_priority === 'medium' ? 'selected' : ''}>中</option>
+                                <option value="high" ${this.data.card_priority === 'high' ? 'selected' : ''}>高</option>
+                                <option value="urgent" ${this.data.card_priority === 'urgent' ? 'selected' : ''}>紧急</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="task-color">颜色</label>
+                            <input type="color" id="task-color" name="color" 
+                                   value="${this.data.card_color || '#ffffff'}">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-due-date">截止日期</label>
+                        <input type="datetime-local" id="task-due-date" name="due_date" 
+                               value="${this.formatDateTimeForInput(this.data.card_due_date)}">
+                    </div>
+                    
+                    <div class="dialog-footer">
+                        <button type="button" class="btn btn-secondary cancel-btn">关闭</button>
+                        <button type="button" class="btn btn-danger delete-btn">删除任务</button>
+                        <button type="submit" class="btn btn-primary save-btn">保存更改</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        // 绑定事件
+        this.bindEditDialogEvents(dialog);
+        
+        // 显示对话框
+        dialog.style.display = 'block';
+        
+        // 聚焦到标题输入框
+        setTimeout(function() {
+            dialog.querySelector('#task-title').focus();
+        }, 100);
+    };
+
+    /**
+     * 绑定编辑对话框事件
+     */
+    KanbanCard.prototype.bindEditDialogEvents = function(dialog) {
+        var self = this;
+        var form = dialog.querySelector('.kanban-task-form');
+        var cancelBtn = dialog.querySelector('.cancel-btn');
+        var deleteBtn = dialog.querySelector('.delete-btn');
+        var closeBtn = dialog.querySelector('.dialog-close');
+        var overlay = dialog.querySelector('.dialog-overlay');
+        
+        // 关闭对话框
+        function closeDialog() {
+            dialog.remove();
+        }
+        
+        // 取消按钮
+        cancelBtn.addEventListener('click', closeDialog);
+        
+        // 关闭按钮
+        closeBtn.addEventListener('click', closeDialog);
+        
+        // 点击遮罩层关闭
+        overlay.addEventListener('click', closeDialog);
+        
+        // ESC键关闭
+        dialog.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDialog();
+            }
+        });
+        
+        // 删除任务
+        deleteBtn.addEventListener('click', function() {
+            if (confirm('确定要删除这个任务吗？此操作不可撤销。')) {
+                self.deleteTask();
+                closeDialog();
+            }
+        });
+        
+        // 表单提交
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            self.saveTask(form);
+            closeDialog();
+        });
+    };
+
+    /**
+     * 保存任务
+     */
+    KanbanCard.prototype.saveTask = function(form) {
+        var self = this;
+        var formData = new FormData(form);
+        
+        var taskData = {
+            card_id: this.data.card_id,
+            title: formData.get('title').trim(),
+            description: formData.get('description').trim(),
+            priority: formData.get('priority'),
+            color: formData.get('color'),
+            due_date: formData.get('due_date') || null,
+            status_id: formData.get('status_id')
+        };
+        
+        // 验证数据
+        if (!taskData.title) {
+            alert('任务标题不能为空');
+            return;
+        }
+        
+        if (taskData.title.length > 500) {
+            alert('任务标题不能超过500个字符');
+            return;
+        }
+        
+        // 显示加载状态
+        var saveBtn = form.querySelector('.save-btn');
+        var originalText = saveBtn.textContent;
+        saveBtn.textContent = '保存中...';
+        saveBtn.disabled = true;
+        
+        // 调用API更新任务
+        this.updateTaskAPI(taskData)
+            .then(function(response) {
+                if (response.result === 'success') {
+                    // 检查状态是否发生变化
+                    var oldStatusId = self.data.column_id;
+                    var newStatusId = parseInt(taskData.status_id);
+                    
+                    if (oldStatusId != newStatusId) {
+                        // 状态发生变化，需要移动卡片
+                        self.moveToNewStatus(newStatusId, taskData);
+                    } else {
+                        // 状态未变化，只更新本地数据
+                        self.data.card_title = taskData.title;
+                        self.data.card_description = taskData.description;
+                        self.data.card_priority = taskData.priority;
+                        self.data.card_color = taskData.color;
+                        self.data.card_due_date = taskData.due_date;
+                        
+                        // 重新渲染卡片
+                        self.updateCardDisplay();
+                    }
+                    
+                    // 显示成功消息
+                    self.showSuccessMessage('任务已保存');
+                } else {
+                    alert('保存失败：' + (response.message || '未知错误'));
+                }
+            })
+            .catch(function(error) {
+                console.error('保存任务失败:', error);
+                alert('保存失败，请稍后重试');
+            })
+            .finally(function() {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+            });
+    };
+
+    /**
+     * 删除任务
+     */
+    KanbanCard.prototype.deleteTask = function() {
+        var self = this;
+        
+        // 显示加载状态
+        this.showSuccessMessage('正在删除...');
+        
+        // 调用API删除任务
+        this.deleteTaskAPI()
+            .then(function(response) {
+                if (response.result === 'success') {
+                    // 从DOM中移除卡片
+                    self.element.remove();
+                    
+                    // 显示成功消息
+                    self.showSuccessMessage('任务已删除');
+                } else {
+                    alert('删除失败：' + (response.message || '未知错误'));
+                }
+            })
+            .catch(function(error) {
+                console.error('删除任务失败:', error);
+                alert('删除失败，请稍后重试');
+            });
+    };
+
+    /**
+     * 更新卡片显示
+     */
+    KanbanCard.prototype.updateCardDisplay = function() {
+        var titleElement = this.element.querySelector('.kanban-card-title');
+        var descriptionElement = this.element.querySelector('.kanban-card-description');
+        
+        // 更新标题
+        titleElement.textContent = this.data.card_title || '无标题';
+        
+        // 更新描述
+        if (this.data.card_description) {
+            if (!descriptionElement) {
+                descriptionElement = document.createElement('div');
+                descriptionElement.className = 'kanban-card-description';
+                titleElement.parentNode.insertBefore(descriptionElement, titleElement.nextSibling);
+            }
+            descriptionElement.textContent = this.data.card_description;
+        } else if (descriptionElement) {
+            descriptionElement.remove();
+        }
+        
+        // 更新优先级样式
+        this.element.classList.remove('priority-high');
+        if (this.data.card_priority === 'high' || this.data.card_priority === 'urgent') {
+            this.element.classList.add('priority-high');
+        }
+        
+        // 更新颜色
+        if (this.data.card_color && this.data.card_color !== '#ffffff') {
+            this.element.style.backgroundColor = this.data.card_color;
+        } else {
+            this.element.style.backgroundColor = '';
         }
     };
 
     /**
-     * 显示卡片详情
+     * 调用更新任务API
      */
-    KanbanCard.prototype.showCardDetails = function() {
-        // 显示卡片详情
-        var details = '卡片详情:\n';
-        details += '标题: ' + this.data.card_title + '\n';
-        details += '描述: ' + (this.data.card_description || '无描述') + '\n';
-        details += '优先级: ' + this.data.card_priority + '\n';
-        details += '列: ' + this.column.data.column_name;
-        
-        alert(details);
+    KanbanCard.prototype.updateTaskAPI = function(taskData) {
+        var self = this;
+        return new Promise(function(resolve, reject) {
+            var params = new URLSearchParams({
+                action: 'kanban',
+                format: 'json',
+                kanban_action: 'updatetask',
+                task_id: taskData.card_id,
+                title: taskData.title,
+                description: taskData.description,
+                priority: taskData.priority,
+                color: taskData.color,
+                due_date: taskData.due_date || '',
+                status_id: taskData.status_id
+            });
+            
+            // 添加用户认证
+            if (mw.user.isAnon()) {
+                reject(new Error('需要登录才能保存任务'));
+                return;
+            }
+            
+            fetch(mw.config.get('wgScriptPath') + '/api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    reject(new Error(data.error.info || 'API error'));
+                } else {
+                    resolve(data);
+                }
+            })
+            .catch(function(error) {
+                reject(error);
+            });
+        });
     };
+
+    /**
+     * 调用删除任务API
+     */
+    KanbanCard.prototype.deleteTaskAPI = function() {
+        var self = this;
+        return new Promise(function(resolve, reject) {
+            var params = new URLSearchParams({
+                action: 'kanban',
+                format: 'json',
+                kanban_action: 'deletetask',
+                task_id: self.data.card_id
+            });
+            
+            // 添加用户认证
+            if (mw.user.isAnon()) {
+                reject(new Error('需要登录才能删除任务'));
+                return;
+            }
+            
+            fetch(mw.config.get('wgScriptPath') + '/api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    reject(new Error(data.error.info || 'API error'));
+                } else {
+                    resolve(data);
+                }
+            })
+            .catch(function(error) {
+                reject(error);
+            });
+        });
+    };
+
+    /**
+     * 格式化日期时间用于输入框
+     */
+    KanbanCard.prototype.formatDateTimeForInput = function(dateString) {
+        if (!dateString) return '';
+        
+        try {
+            var date = new Date(dateString);
+            if (isNaN(date.getTime())) return '';
+            
+            // 转换为本地时间格式 YYYY-MM-DDTHH:MM
+            var year = date.getFullYear();
+            var month = String(date.getMonth() + 1).padStart(2, '0');
+            var day = String(date.getDate()).padStart(2, '0');
+            var hours = String(date.getHours()).padStart(2, '0');
+            var minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+        } catch (e) {
+            return '';
+        }
+    };
+
+    /**
+     * 显示成功消息
+     */
+    KanbanCard.prototype.showSuccessMessage = function(message) {
+        var messageEl = document.createElement('div');
+        messageEl.className = 'kanban-success-message';
+        messageEl.textContent = message;
+        
+        document.body.appendChild(messageEl);
+        
+        setTimeout(function() {
+            messageEl.remove();
+        }, 3000);
+    };
+
 
     // 初始化所有看板
     mw.hook('wikipage.content').add(function() {

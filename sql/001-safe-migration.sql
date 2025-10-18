@@ -78,3 +78,5 @@ WHERE column_width IS NULL OR column_max_cards IS NULL OR column_is_collapsed IS
    OR column_wip_limit IS NULL OR column_creator_id IS NULL OR column_color IS NULL;
 
 
+
+

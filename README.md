@@ -44,3 +44,5 @@ MediaWiki Kanban Board Extension - 看板管理扩展
 ## 许可证
 
 GPL-2.0-or-later
+
+
