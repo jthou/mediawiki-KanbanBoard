@@ -942,29 +942,50 @@
                 self.showAddCardDialog();
             });
             
-            // 编辑列按钮
-            var editBtn = document.createElement('button');
-            editBtn.className = 'kanban-edit-column-btn';
-            editBtn.textContent = '✎';
-            editBtn.title = '编辑列';
+            // 菜单按钮容器（相对定位）
+            var menuContainer = document.createElement('div');
+            menuContainer.className = 'kanban-column-menu-container';
             
-            editBtn.addEventListener('click', function() {
-                self.showEditColumnDialog();
+            // 菜单按钮
+            var menuBtn = document.createElement('button');
+            menuBtn.className = 'kanban-column-menu-btn';
+            menuBtn.innerHTML = '⋮';
+            menuBtn.title = '列操作菜单';
+            
+            // 创建下拉菜单
+            var dropdownMenu = document.createElement('div');
+            dropdownMenu.className = 'kanban-column-dropdown-menu';
+            dropdownMenu.innerHTML = `
+                <div class="menu-item" data-action="edit">
+                    <span class="menu-icon">✎</span>
+                    <span class="menu-text">编辑列</span>
+                </div>
+                <div class="menu-item" data-action="delete">
+                    <span class="menu-icon">×</span>
+                    <span class="menu-text">删除列</span>
+                </div>
+            `;
+            
+            // 菜单按钮点击事件
+            menuBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                self.toggleColumnMenu(dropdownMenu);
             });
             
-            // 删除列按钮
-            var deleteBtn = document.createElement('button');
-            deleteBtn.className = 'kanban-delete-column-btn';
-            deleteBtn.textContent = '×';
-            deleteBtn.title = '删除列';
-            
-            deleteBtn.addEventListener('click', function() {
-                self.showDeleteColumnDialog();
+            // 菜单项点击事件
+            dropdownMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var action = e.target.closest('.menu-item').dataset.action;
+                self.handleColumnMenuAction(action);
+                self.hideColumnMenu(dropdownMenu);
             });
+            
+            // 将菜单按钮和下拉菜单添加到菜单容器
+            menuContainer.appendChild(menuBtn);
+            menuContainer.appendChild(dropdownMenu);
             
             actionsContainer.appendChild(addCardBtn);
-            actionsContainer.appendChild(editBtn);
-            actionsContainer.appendChild(deleteBtn);
+            actionsContainer.appendChild(menuContainer);
             header.appendChild(actionsContainer);
         }
         
@@ -975,6 +996,9 @@
         this.cardsContainer.className = 'kanban-cards';
         
         this.element.appendChild(this.cardsContainer);
+        
+        // 添加全局点击事件来关闭菜单
+        this.addGlobalMenuCloseListener();
     };
 
     /**
@@ -998,6 +1022,68 @@
             noCardsMsg.className = 'kanban-no-cards';
             noCardsMsg.textContent = '暂无卡片';
             this.cardsContainer.appendChild(noCardsMsg);
+        }
+    };
+
+    /**
+     * 添加全局菜单关闭监听器
+     */
+    KanbanColumn.prototype.addGlobalMenuCloseListener = function() {
+        var self = this;
+        
+        // 只在第一次添加全局监听器
+        if (!window.kanbanMenuCloseListenerAdded) {
+            window.kanbanMenuCloseListenerAdded = true;
+            
+            document.addEventListener('click', function(e) {
+                // 如果点击的不是菜单相关元素，关闭所有菜单
+                if (!e.target.closest('.kanban-column-menu-btn') && 
+                    !e.target.closest('.kanban-column-dropdown-menu')) {
+                    var allMenus = document.querySelectorAll('.kanban-column-dropdown-menu');
+                    allMenus.forEach(function(menu) {
+                        menu.classList.remove('show');
+                    });
+                }
+            });
+        }
+    };
+
+    /**
+     * 切换列菜单显示状态
+     */
+    KanbanColumn.prototype.toggleColumnMenu = function(dropdownMenu) {
+        // 隐藏其他所有菜单
+        var allMenus = document.querySelectorAll('.kanban-column-dropdown-menu');
+        allMenus.forEach(function(menu) {
+            if (menu !== dropdownMenu) {
+                menu.classList.remove('show');
+            }
+        });
+        
+        // 切换当前菜单
+        dropdownMenu.classList.toggle('show');
+    };
+
+    /**
+     * 隐藏列菜单
+     */
+    KanbanColumn.prototype.hideColumnMenu = function(dropdownMenu) {
+        dropdownMenu.classList.remove('show');
+    };
+
+    /**
+     * 处理列菜单动作
+     */
+    KanbanColumn.prototype.handleColumnMenuAction = function(action) {
+        switch (action) {
+            case 'edit':
+                this.showEditColumnDialog();
+                break;
+            case 'delete':
+                this.showDeleteColumnDialog();
+                break;
+            default:
+                console.warn('未知的菜单动作:', action);
         }
     };
 
@@ -1684,28 +1770,449 @@
             this.element.appendChild(description);
         }
         
-        // 如果不是只读模式，添加编辑按钮
+        // 如果不是只读模式，添加拖拽手柄
         if (!this.column.board.readOnly) {
-            var editBtn = document.createElement('button');
-            editBtn.className = 'kanban-card-edit';
-            editBtn.textContent = '✏️';
-            editBtn.title = '编辑卡片';
-            
-            editBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                self.showEditDialog();
-            });
-            
-            this.element.appendChild(editBtn);
+            // 拖拽手柄
+            var dragHandle = document.createElement('div');
+            dragHandle.className = 'kanban-card-drag-handle';
+            dragHandle.innerHTML = '⋮⋮';
+            dragHandle.title = '拖拽移动卡片';
+            this.element.appendChild(dragHandle);
         }
         
         // 添加点击事件 - 直接打开编辑对话框
         this.element.addEventListener('click', function(e) {
-            // 如果点击的是编辑按钮，不触发卡片点击事件
-            if (e.target.classList.contains('kanban-card-edit')) {
+            // 如果点击的是拖拽手柄，不触发卡片点击事件
+            if (e.target.classList.contains('kanban-card-drag-handle')) {
                 return;
             }
-            self.showEditDialog();
+                self.showEditDialog();
+            });
+            
+        // 如果不是只读模式，添加拖拽功能
+        if (!this.column.board.readOnly) {
+            this.makeCardDraggable();
+        }
+    };
+
+    /**
+     * 使卡片可拖拽
+     */
+    KanbanCard.prototype.makeCardDraggable = function() {
+        var self = this;
+        
+        // 获取拖拽手柄
+        var dragHandle = this.element.querySelector('.kanban-card-drag-handle');
+        if (!dragHandle) {
+            console.warn('卡片拖拽手柄未找到');
+                return;
+            }
+        
+        // 只设置拖拽手柄为可拖拽
+        dragHandle.draggable = true;
+        dragHandle.style.cursor = 'move';
+        
+        // 拖拽开始 - 只在拖拽手柄上监听
+        dragHandle.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', self.data.card_id);
+            e.dataTransfer.effectAllowed = 'move';
+            
+            // 添加拖拽样式
+            self.element.style.opacity = '0.5';
+            self.element.style.transform = 'rotate(2deg)';
+            
+            // 记录拖拽的卡片
+            var board = self.column ? self.column.board : null;
+            if (board) {
+                board.draggedCard = self;
+                board.draggedCardId = self.data.card_id;
+                
+                // 为所有其他卡片添加拖拽目标样式
+                self.addDropTargetStyles();
+            }
+        });
+        
+        // 拖拽结束 - 只在拖拽手柄上监听
+        dragHandle.addEventListener('dragend', function(e) {
+            // 移除拖拽样式
+            self.element.style.opacity = '1';
+            self.element.style.transform = '';
+            
+            // 清理状态
+            var board = self.column ? self.column.board : null;
+            if (board) {
+                board.draggedCard = null;
+                board.draggedCardId = null;
+                
+                // 移除所有拖拽指示器和样式
+                self.removeCardDragIndicators();
+                self.removeDropTargetStyles();
+            }
+        });
+        
+        // 为卡片元素添加拖拽事件监听
+        this.bindCardDragEvents();
+    };
+
+    /**
+     * 绑定卡片拖拽事件
+     */
+    KanbanCard.prototype.bindCardDragEvents = function() {
+        var self = this;
+        
+        // 拖拽进入
+        this.element.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            var board = self.column ? self.column.board : null;
+            if (board && board.draggedCard && board.draggedCard !== self) {
+                self.handleCardDragEnter(e);
+            }
+        });
+        
+        // 拖拽悬停
+        this.element.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            var board = self.column ? self.column.board : null;
+            if (board && board.draggedCard && board.draggedCard !== self) {
+                self.handleCardDragOver(e);
+            }
+        });
+        
+        // 拖拽离开
+        this.element.addEventListener('dragleave', function(e) {
+            // 只有当鼠标真正离开元素时才移除指示器
+            if (!self.element.contains(e.relatedTarget)) {
+                self.removeCardDragIndicator();
+            }
+        });
+        
+        // 放置
+        this.element.addEventListener('drop', function(e) {
+            e.preventDefault();
+            
+            var draggedCardId = e.dataTransfer.getData('text/plain');
+            var board = self.column ? self.column.board : null;
+            if (board && board.draggedCard) {
+                self.handleCardDrop(board.draggedCard, e);
+            }
+            
+            self.removeCardDragIndicators();
+            self.removeDropTargetStyles();
+        });
+    };
+
+    /**
+     * 处理卡片拖拽进入
+     */
+    KanbanCard.prototype.handleCardDragEnter = function(e) {
+        // 移除之前的指示器
+        this.removeCardDragIndicator();
+        
+        // 计算放置位置
+        var rect = this.element.getBoundingClientRect();
+        var midPoint = rect.top + rect.height / 2;
+        var position = e.clientY < midPoint ? 'before' : 'after';
+        
+        // 显示新的指示器
+        this.updateCardDragIndicator(position);
+    };
+
+    /**
+     * 处理卡片拖拽悬停
+     */
+    KanbanCard.prototype.handleCardDragOver = function(e) {
+        // 根据鼠标位置更新指示器
+        var rect = this.element.getBoundingClientRect();
+        var midPoint = rect.top + rect.height / 2;
+        var position = e.clientY < midPoint ? 'before' : 'after';
+        
+        this.updateCardDragIndicator(position);
+    };
+
+    /**
+     * 处理卡片放置
+     */
+    KanbanCard.prototype.handleCardDrop = function(draggedCard, e) {
+        var self = this;
+        
+        // 计算最终放置位置
+        var rect = this.element.getBoundingClientRect();
+        var midPoint = rect.top + rect.height / 2;
+        var position = e.clientY < midPoint ? 'before' : 'after';
+        
+        // 移动卡片到新位置
+        this.moveCardToPosition(draggedCard, position);
+    };
+
+    /**
+     * 更新卡片拖拽指示器
+     */
+    KanbanCard.prototype.updateCardDragIndicator = function(position) {
+        // 移除现有指示器
+        this.removeCardDragIndicator();
+        
+        // 创建新指示器
+        var indicator = document.createElement('div');
+        indicator.className = 'kanban-card-drag-indicator';
+        indicator.dataset.position = position;
+        
+        // 插入到正确位置
+        if (position === 'before') {
+            this.element.parentNode.insertBefore(indicator, this.element);
+        } else {
+            this.element.parentNode.insertBefore(indicator, this.element.nextSibling);
+        }
+    };
+
+    /**
+     * 移除卡片拖拽指示器
+     */
+    KanbanCard.prototype.removeCardDragIndicator = function() {
+        var indicator = this.element.parentNode.querySelector('.kanban-card-drag-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    };
+
+    /**
+     * 移除所有卡片拖拽指示器
+     */
+    KanbanCard.prototype.removeCardDragIndicators = function() {
+        var board = this.column ? this.column.board : null;
+        if (board) {
+            var indicators = document.querySelectorAll('.kanban-card-drag-indicator');
+            indicators.forEach(function(indicator) {
+                indicator.remove();
+            });
+        }
+    };
+
+    /**
+     * 添加拖拽目标样式
+     */
+    KanbanCard.prototype.addDropTargetStyles = function() {
+        var board = this.column ? this.column.board : null;
+        if (board && board.columns) {
+            board.columns.forEach(function(column) {
+                if (column.data.cards) {
+                    column.data.cards.forEach(function(card) {
+                        if (card.element && card !== this) {
+                            card.element.classList.add('kanban-card-drop-target');
+                        }
+                    }.bind(this));
+                }
+            }.bind(this));
+        }
+    };
+
+    /**
+     * 移除拖拽目标样式
+     */
+    KanbanCard.prototype.removeDropTargetStyles = function() {
+        var dropTargets = document.querySelectorAll('.kanban-card-drop-target');
+        dropTargets.forEach(function(target) {
+            target.classList.remove('kanban-card-drop-target');
+        });
+    };
+
+    /**
+     * 移动卡片到指定位置
+     */
+    KanbanCard.prototype.moveCardToPosition = function(draggedCard, position) {
+        var self = this;
+        var board = this.column ? this.column.board : null;
+        if (!board) return;
+        
+        var sourceColumn = draggedCard.column;
+        var targetColumn = self.column;
+        
+        // 检查是否是跨列拖拽
+        var isCrossColumn = sourceColumn.data.column_id !== targetColumn.data.column_id;
+        
+        if (isCrossColumn) {
+            // 跨列拖拽
+            this.moveCardCrossColumn(draggedCard, targetColumn, position);
+        } else {
+            // 同列拖拽
+            this.moveCardSameColumn(draggedCard, position);
+        }
+    };
+
+    /**
+     * 同列内移动卡片
+     */
+    KanbanCard.prototype.moveCardSameColumn = function(draggedCard, position) {
+        var self = this;
+        var board = this.column ? this.column.board : null;
+        if (!board) return;
+        
+        // 获取当前列的所有卡片
+        var currentColumn = draggedCard.column;
+        var cards = currentColumn.data.cards || [];
+        
+        // 找到拖拽卡片和目标卡片的索引
+        var draggedIndex = cards.findIndex(function(card) {
+            return card.card_id === draggedCard.data.card_id;
+        });
+        var targetIndex = cards.findIndex(function(card) {
+            return card.card_id === self.data.card_id;
+        });
+        
+        if (draggedIndex === -1 || targetIndex === -1) {
+            console.error('无法找到卡片索引');
+            return;
+        }
+        
+        // 计算插入位置
+        var insertIndex = targetIndex;
+        if (draggedIndex < targetIndex) {
+            insertIndex = targetIndex - 1;
+        }
+        if (position === 'after') {
+            insertIndex = insertIndex + 1;
+        }
+        
+        // 从原位置移除
+        cards.splice(draggedIndex, 1);
+        
+        // 插入到新位置
+        cards.splice(insertIndex, 0, draggedCard.data);
+        
+        // 重新渲染列
+        currentColumn.renderCards();
+        
+        // 发送API请求保存新顺序
+        this.saveCardOrder(board);
+    };
+
+    /**
+     * 跨列移动卡片
+     */
+    KanbanCard.prototype.moveCardCrossColumn = function(draggedCard, targetColumn, position) {
+        var self = this;
+        var board = this.column ? this.column.board : null;
+        if (!board) return;
+        
+        var sourceColumn = draggedCard.column;
+        var sourceCards = sourceColumn.data.cards || [];
+        var targetCards = targetColumn.data.cards || [];
+        
+        // 找到拖拽卡片在源列中的索引
+        var draggedIndex = sourceCards.findIndex(function(card) {
+            return card.card_id === draggedCard.data.card_id;
+        });
+        
+        if (draggedIndex === -1) {
+            console.error('无法找到拖拽卡片索引');
+            return;
+        }
+        
+        // 计算在目标列中的插入位置
+        var insertIndex = 0;
+        if (position === 'after') {
+            insertIndex = targetCards.length;
+        } else {
+            // 找到目标卡片在目标列中的索引
+            var targetIndex = targetCards.findIndex(function(card) {
+                return card.card_id === self.data.card_id;
+            });
+            if (targetIndex !== -1) {
+                insertIndex = targetIndex;
+            }
+        }
+        
+        // 从源列移除卡片
+        var cardData = sourceCards.splice(draggedIndex, 1)[0];
+        
+        // 更新卡片的列ID
+        cardData.column_id = targetColumn.data.column_id;
+        cardData.status_name = targetColumn.data.column_name;
+        
+        // 插入到目标列
+        targetCards.splice(insertIndex, 0, cardData);
+        
+        // 更新卡片的列引用
+        draggedCard.column = targetColumn;
+        
+        // 重新渲染两个列
+        sourceColumn.renderCards();
+        targetColumn.renderCards();
+        
+        // 发送API请求保存新顺序和状态
+        this.saveCardOrder(board);
+    };
+
+    /**
+     * 保存卡片顺序
+     */
+    KanbanCard.prototype.saveCardOrder = function(board) {
+        var self = this;
+        
+        // 准备卡片顺序数据
+        var cardOrders = [];
+        if (board && board.columns) {
+            board.columns.forEach(function(column) {
+                if (column.data.cards) {
+                    column.data.cards.forEach(function(card, index) {
+                        cardOrders.push({
+                            card_id: card.card_id,
+                            order: index + 1,
+                            status_id: column.data.column_id
+                        });
+                    });
+                }
+            });
+        }
+        
+        // 发送API请求
+        var params = {
+            action: 'kanban',
+            kanban_action: 'reordercards',
+            board_id: board.boardId,
+            card_orders: JSON.stringify(cardOrders)
+        };
+        
+        console.log('API请求参数:', params);
+        
+        board.api.post(params).done(function(data) {
+            console.log('API保存卡片顺序成功:', data);
+            self.showSuccessMessage('卡片顺序已保存');
+        }).fail(function(error) {
+            console.error('保存卡片顺序失败:', error);
+            self.showErrorMessage('保存卡片顺序失败，请刷新页面重试');
+            
+            // 失败时重新加载看板
+            board.loadBoard();
+        });
+    };
+
+    /**
+     * 更新任务状态API
+     */
+    KanbanCard.prototype.updateTaskStatusAPI = function(cardId, newStatusId) {
+        var self = this;
+        var board = this.column ? this.column.board : null;
+        if (!board) return;
+        
+        var params = {
+            action: 'kanban',
+            kanban_action: 'updatetask',
+            task_id: cardId,
+            status_id: newStatusId
+        };
+        
+        console.log('API更新任务状态参数:', params);
+        
+        board.api.post(params).done(function(data) {
+            console.log('API更新任务状态成功:', data);
+        }).fail(function(error) {
+            console.error('更新任务状态失败:', error);
+            self.showErrorMessage('更新任务状态失败，请刷新页面重试');
+            
+            // 失败时重新加载看板
+            board.loadBoard();
         });
     };
 
@@ -1717,9 +2224,10 @@
         
         // 找到目标列
         var targetColumn = null;
-        if (self.board && self.board.columns) {
-            self.board.columns.forEach(function(column) {
-                if (column.column_id == newStatusId) {
+        var board = self.column ? self.column.board : null;
+        if (board && board.columns) {
+            board.columns.forEach(function(column) {
+                if (column.data.column_id == newStatusId) {
                     targetColumn = column;
                 }
             });
@@ -1737,7 +2245,7 @@
         self.data.card_color = taskData.color;
         self.data.card_due_date = taskData.due_date;
         self.data.column_id = newStatusId;
-        self.data.status_name = targetColumn.column_name;
+        self.data.status_name = targetColumn.data.column_name;
         
         // 从当前列移除卡片
         var currentColumn = self.column;
@@ -1763,14 +2271,29 @@
         var self = this;
         var options = '';
         
+        // 通过column访问board
+        var board = self.column ? self.column.board : null;
+        
+        // 调试信息
+        console.log('getStatusOptions - column:', self.column);
+        console.log('getStatusOptions - board:', board);
+        console.log('getStatusOptions - board.columns:', board ? board.columns : 'no board');
+        console.log('getStatusOptions - self.data:', self.data);
+        
         // 从看板数据中获取所有列（状态）
-        if (self.board && self.board.columns) {
-            self.board.columns.forEach(function(column) {
-                var selected = column.column_id == self.data.column_id ? 'selected' : '';
-                options += `<option value="${column.column_id}" ${selected}>${column.column_name}</option>`;
+        if (board && board.columns) {
+            console.log('getStatusOptions - columns length:', board.columns.length);
+            board.columns.forEach(function(column, index) {
+                console.log('getStatusOptions - column[' + index + ']:', column);
+                console.log('getStatusOptions - column[' + index + '].data:', column.data);
+                var selected = column.data.column_id == self.data.column_id ? 'selected' : '';
+                options += `<option value="${column.data.column_id}" ${selected}>${column.data.column_name}</option>`;
             });
+        } else {
+            console.log('getStatusOptions - no columns available');
         }
         
+        console.log('getStatusOptions - final options:', options);
         return options;
     };
 
@@ -1798,56 +2321,83 @@
                     <h3>任务详情</h3>
                     <button class="dialog-close" type="button">&times;</button>
                 </div>
-                <form class="kanban-task-form">
-                    <div class="form-group">
-                        <label for="task-title">任务标题 *</label>
-                        <input type="text" id="task-title" name="title" value="${this.data.card_title || ''}" 
-                               maxlength="500" required placeholder="请输入任务标题">
+                
+                <!-- 标签页导航 -->
+                <div class="dialog-tabs">
+                    <button class="tab-btn active" data-tab="details">任务详情</button>
+                    <button class="tab-btn" data-tab="history">历史记录</button>
+                </div>
+                
+                <div class="dialog-body">
+                    <!-- 任务详情标签页 -->
+                    <div class="tab-content active" id="tab-details">
+                        <form class="kanban-task-form">
+                            <div class="form-group">
+                                <label for="task-title">任务标题 *</label>
+                                <input type="text" id="task-title" name="title" value="${this.data.card_title || ''}" 
+                                       maxlength="500" required placeholder="请输入任务标题">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="task-description">任务描述</label>
+                                <textarea id="task-description" name="description" rows="8" 
+                                          placeholder="请输入任务详细描述">${this.data.card_description || ''}</textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="task-status">任务状态</label>
+                                    <select id="task-status" name="status_id">
+                                        ${this.getStatusOptions()}
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="task-priority">优先级</label>
+                                    <select id="task-priority" name="priority">
+                                        <option value="low" ${this.data.card_priority === 'low' ? 'selected' : ''}>低</option>
+                                        <option value="medium" ${this.data.card_priority === 'medium' ? 'selected' : ''}>中</option>
+                                        <option value="high" ${this.data.card_priority === 'high' ? 'selected' : ''}>高</option>
+                                        <option value="urgent" ${this.data.card_priority === 'urgent' ? 'selected' : ''}>紧急</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="task-color">颜色</label>
+                                    <input type="color" id="task-color" name="color" 
+                                           value="${this.data.card_color || '#ffffff'}">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="task-due-date">截止日期</label>
+                                    <input type="datetime-local" id="task-due-date" name="due_date" 
+                                           value="${this.formatDateTimeForInput(this.data.card_due_date)}">
+                                </div>
+                            </div>
+                        </form>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="task-status">任务状态</label>
-                        <select id="task-status" name="status_id">
-                            ${this.getStatusOptions()}
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="task-description">任务描述</label>
-                        <textarea id="task-description" name="description" rows="4" 
-                                  placeholder="请输入任务详细描述">${this.data.card_description || ''}</textarea>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="task-priority">优先级</label>
-                            <select id="task-priority" name="priority">
-                                <option value="low" ${this.data.card_priority === 'low' ? 'selected' : ''}>低</option>
-                                <option value="medium" ${this.data.card_priority === 'medium' ? 'selected' : ''}>中</option>
-                                <option value="high" ${this.data.card_priority === 'high' ? 'selected' : ''}>高</option>
-                                <option value="urgent" ${this.data.card_priority === 'urgent' ? 'selected' : ''}>紧急</option>
-                            </select>
+                    <!-- 历史记录标签页 -->
+                    <div class="tab-content" id="tab-history">
+                        <div class="history-container">
+                            <div class="history-loading">加载历史记录中...</div>
+                            <div class="history-list" style="display: none;"></div>
+                            <div class="history-empty" style="display: none;">
+                                <p>暂无历史记录</p>
+                            </div>
                         </div>
-                        
-                        <div class="form-group">
-                            <label for="task-color">颜色</label>
-                            <input type="color" id="task-color" name="color" 
-                                   value="${this.data.card_color || '#ffffff'}">
-                        </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="task-due-date">截止日期</label>
-                        <input type="datetime-local" id="task-due-date" name="due_date" 
-                               value="${this.formatDateTimeForInput(this.data.card_due_date)}">
-                    </div>
-                    
-                    <div class="dialog-footer">
-                        <button type="button" class="btn btn-secondary cancel-btn">关闭</button>
+                </div>
+                
+                <div class="dialog-footer">
+                    <div class="btn-group-left">
                         <button type="button" class="btn btn-danger delete-btn">删除任务</button>
+                    </div>
+                    <div class="btn-group-right">
+                        <button type="button" class="btn btn-secondary cancel-btn">关闭</button>
                         <button type="submit" class="btn btn-primary save-btn">保存更改</button>
                     </div>
-                </form>
+                </div>
             </div>
         `;
         
@@ -1871,7 +2421,6 @@
     KanbanCard.prototype.bindEditDialogEvents = function(dialog) {
         var self = this;
         var form = dialog.querySelector('.kanban-task-form');
-        var cancelBtn = dialog.querySelector('.cancel-btn');
         var deleteBtn = dialog.querySelector('.delete-btn');
         var closeBtn = dialog.querySelector('.dialog-close');
         var overlay = dialog.querySelector('.dialog-overlay');
@@ -1880,9 +2429,6 @@
         function closeDialog() {
             dialog.remove();
         }
-        
-        // 取消按钮
-        cancelBtn.addEventListener('click', closeDialog);
         
         // 关闭按钮
         closeBtn.addEventListener('click', closeDialog);
@@ -1910,6 +2456,33 @@
             e.preventDefault();
             self.saveTask(form);
             closeDialog();
+        });
+        
+        // 标签页切换
+        var tabBtns = dialog.querySelectorAll('.tab-btn');
+        var tabContents = dialog.querySelectorAll('.tab-content');
+        
+        tabBtns.forEach(function(tabBtn) {
+            tabBtn.addEventListener('click', function() {
+                var targetTab = this.dataset.tab;
+                
+                // 更新标签页按钮状态
+                tabBtns.forEach(function(btn) {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // 更新标签页内容
+                tabContents.forEach(function(content) {
+                    content.classList.remove('active');
+                });
+                dialog.querySelector('#tab-' + targetTab).classList.add('active');
+                
+                // 如果切换到历史记录标签页，加载历史记录
+                if (targetTab === 'history') {
+                    self.loadTaskHistory(dialog);
+                }
+            });
         });
     };
 
@@ -2165,6 +2738,156 @@
             return '';
         }
     };
+    
+    /**
+     * 加载任务历史记录
+     */
+    KanbanCard.prototype.loadTaskHistory = function(dialog) {
+        var self = this;
+        var historyContainer = dialog.querySelector('.history-container');
+        var historyLoading = dialog.querySelector('.history-loading');
+        var historyList = dialog.querySelector('.history-list');
+        var historyEmpty = dialog.querySelector('.history-empty');
+        
+        // 显示加载状态
+        historyLoading.style.display = 'block';
+        historyList.style.display = 'none';
+        historyEmpty.style.display = 'none';
+        
+        // 调用API获取历史记录
+        var params = new URLSearchParams({
+            action: 'kanban',
+            format: 'json',
+            kanban_action: 'gethistory',
+            task_id: self.data.card_id,
+            limit: 50
+        });
+        
+        fetch(mw.config.get('wgScriptPath') + '/api.php?' + params.toString())
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            historyLoading.style.display = 'none';
+            
+            if (data.error) {
+                console.error('获取历史记录失败:', data.error);
+                historyEmpty.style.display = 'block';
+                historyEmpty.innerHTML = '<p>加载历史记录失败</p>';
+                return;
+            }
+            
+            if (data.history && data.history.length > 0) {
+                self.renderTaskHistory(data.history, historyList);
+                historyList.style.display = 'block';
+            } else {
+                historyEmpty.style.display = 'block';
+            }
+        })
+        .catch(function(error) {
+            console.error('获取历史记录失败:', error);
+            historyLoading.style.display = 'none';
+            historyEmpty.style.display = 'block';
+            historyEmpty.innerHTML = '<p>加载历史记录失败</p>';
+        });
+    };
+    
+    /**
+     * 渲染任务历史记录
+     */
+    KanbanCard.prototype.renderTaskHistory = function(history, container) {
+        var self = this;
+        container.innerHTML = '';
+        
+        history.forEach(function(record) {
+            var historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            
+            var changeText = self.formatHistoryChange(record);
+            var timeText = self.formatHistoryTime(record.changed_at);
+            
+            historyItem.innerHTML = `
+                <div class="history-header">
+                    <span class="history-action">${changeText}</span>
+                    <span class="history-time">${timeText}</span>
+                </div>
+                <div class="history-details">
+                    <span class="history-user">${record.changed_by || '未知用户'}</span>
+                    ${record.change_reason ? '<span class="history-reason">' + record.change_reason + '</span>' : ''}
+                </div>
+            `;
+            
+            container.appendChild(historyItem);
+        });
+    };
+    
+    /**
+     * 格式化历史记录变更
+     */
+    KanbanCard.prototype.formatHistoryChange = function(record) {
+        var fieldNames = {
+            'title': '标题',
+            'description': '描述',
+            'priority': '优先级',
+            'color': '颜色',
+            'status_id': '状态',
+            'due_date': '截止日期',
+            'deleted': '删除状态',
+            'created': '创建'
+        };
+        
+        var fieldName = fieldNames[record.field_name] || record.field_name;
+        var changeType = record.change_type;
+        
+        if (changeType === 'create') {
+            return '创建了任务';
+        } else if (changeType === 'delete') {
+            return '删除了任务';
+        } else if (changeType === 'update') {
+            if (record.field_name === 'status_id') {
+                return '移动了任务状态';
+            } else {
+                return '修改了' + fieldName;
+            }
+        }
+        
+        return '变更了' + fieldName;
+    };
+    
+    /**
+     * 格式化历史记录时间
+     */
+    KanbanCard.prototype.formatHistoryTime = function(timeString) {
+        try {
+            var date = new Date(timeString);
+            var now = new Date();
+            var diff = now - date;
+            
+            // 小于1分钟
+            if (diff < 60000) {
+                return '刚刚';
+            }
+            // 小于1小时
+            else if (diff < 3600000) {
+                return Math.floor(diff / 60000) + '分钟前';
+            }
+            // 小于1天
+            else if (diff < 86400000) {
+                return Math.floor(diff / 3600000) + '小时前';
+            }
+            // 小于1周
+            else if (diff < 604800000) {
+                return Math.floor(diff / 86400000) + '天前';
+            }
+            // 超过1周，显示具体日期
+            else {
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            }
+        } catch (e) {
+            return timeString;
+        }
+    };
+
 
     /**
      * 显示成功消息

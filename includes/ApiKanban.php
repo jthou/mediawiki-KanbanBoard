@@ -47,6 +47,9 @@ class ApiKanban extends ApiBase {
             case 'reordercolumns':
                 $this->reorderColumns( $params );
                 break;
+            case 'reordercards':
+                $this->reorderCards( $params );
+                break;
             case 'createtask':
                 $this->createTask( $params );
                 break;
@@ -55,6 +58,9 @@ class ApiKanban extends ApiBase {
                 break;
             case 'deletetask':
                 $this->deleteTask( $params );
+                break;
+            case 'gethistory':
+                $this->getTaskHistory( $params );
                 break;
             case 'test':
                 $this->test();
@@ -792,6 +798,10 @@ class ApiKanban extends ApiBase {
                 ParamValidator::PARAM_TYPE => 'string',
                 ParamValidator::PARAM_REQUIRED => false
             ],
+            'card_orders' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
             'task_id' => [
                 ParamValidator::PARAM_TYPE => 'integer',
                 ParamValidator::PARAM_REQUIRED => false
@@ -813,6 +823,14 @@ class ApiKanban extends ApiBase {
                 ParamValidator::PARAM_REQUIRED => false
             ],
             'status_id' => [
+                ParamValidator::PARAM_TYPE => 'integer',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'limit' => [
+                ParamValidator::PARAM_TYPE => 'integer',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'offset' => [
                 ParamValidator::PARAM_TYPE => 'integer',
                 ParamValidator::PARAM_REQUIRED => false
             ]
@@ -839,6 +857,104 @@ class ApiKanban extends ApiBase {
     
     public function needsToken() {
         return false;
+    }
+    
+    /**
+     * 重新排序卡片
+     */
+    private function reorderCards( $params ) {
+        $boardId = (int)$params['board_id'];
+        $cardOrdersJson = $params['card_orders']; // JSON字符串格式
+        
+        // 添加调试信息
+        error_log( "KanbanBoard: reorderCards called with board_id: $boardId" );
+        error_log( "KanbanBoard: card_orders JSON: $cardOrdersJson" );
+        
+        // 解析JSON参数
+        $cardOrders = json_decode( $cardOrdersJson, true );
+        
+        // 验证输入
+        if ( !is_array( $cardOrders ) || empty( $cardOrders ) ) {
+            error_log( "KanbanBoard: Invalid card orders data" );
+            $this->dieWithError( 'Invalid card orders', 'invalidorders' );
+        }
+        
+        error_log( "KanbanBoard: Parsed card orders: " . print_r( $cardOrders, true ) );
+        
+        // 检查权限
+        $user = $this->getUser();
+        if ( !$this->checkBoardPermission( $user->getId(), $boardId, 'edit' ) ) {
+            error_log( "KanbanBoard: Permission denied for user {$user->getId()} on board $boardId" );
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        $db = $this->getDB();
+        $db->startAtomic( __METHOD__ );
+        
+        try {
+            // 批量更新卡片顺序
+            foreach ( $cardOrders as $cardOrder ) {
+                $cardId = (int)$cardOrder['card_id'];
+                $newOrder = (int)$cardOrder['order'];
+                $newStatusId = isset($cardOrder['status_id']) ? (int)$cardOrder['status_id'] : null;
+                
+                error_log( "KanbanBoard: Updating card $cardId to order $newOrder" );
+                if ($newStatusId) {
+                    error_log( "KanbanBoard: Updating card $cardId status to $newStatusId" );
+                }
+                
+                // 验证卡片是否属于该看板
+                $exists = $db->selectField(
+                    'kanban_tasks',
+                    'task_id',
+                    [ 'task_id' => $cardId ],
+                    __METHOD__
+                );
+                
+                if ( !$exists ) {
+                    throw new Exception( "Card {$cardId} not found" );
+                }
+                
+                // 准备更新数据
+                $updateData = [ 'task_order' => $newOrder ];
+                
+                // 如果提供了新的状态ID，验证并更新状态
+                if ( $newStatusId ) {
+                    $statusExists = $db->selectField(
+                        'kanban_statuses',
+                        'status_id',
+                        [ 'status_id' => $newStatusId, 'board_id' => $boardId ],
+                        __METHOD__
+                    );
+                    
+                    if ( !$statusExists ) {
+                        throw new Exception( "Status {$newStatusId} not found in board {$boardId}" );
+                    }
+                    
+                    $updateData['status_id'] = $newStatusId;
+                }
+                
+                // 更新卡片顺序和状态
+                $db->update(
+                    'kanban_tasks',
+                    $updateData,
+                    [ 'task_id' => $cardId ],
+                    __METHOD__
+                );
+            }
+            
+            $db->endAtomic( __METHOD__ );
+            
+            error_log( "KanbanBoard: Card reordering completed successfully" );
+            
+            $this->getResult()->addValue( null, 'result', 'success' );
+            $this->getResult()->addValue( null, 'message', 'Cards reordered successfully' );
+            
+        } catch ( Exception $e ) {
+            $db->rollback( __METHOD__ );
+            error_log( "KanbanBoard: Error reordering cards: " . $e->getMessage() );
+            $this->dieWithError( 'Failed to reorder cards: ' . $e->getMessage(), 'reorderfailed' );
+        }
     }
     
     /**
@@ -913,6 +1029,16 @@ class ApiKanban extends ApiBase {
         if ( !$taskId ) {
             $this->dieWithError( 'Failed to create task', 'createfailed' );
         }
+        
+        // 记录任务创建历史
+        $this->recordTaskHistory( $taskId, null, [
+            'title' => $title,
+            'description' => $description,
+            'priority' => $priority,
+            'color' => $color,
+            'status_id' => $columnId,
+            'due_date' => $dueDate
+        ], $user->getId(), 'create', 'Task created' );
         
         $this->getResult()->addValue( null, 'result', 'success' );
         $this->getResult()->addValue( null, 'task_id', $taskId );
@@ -1001,6 +1127,9 @@ class ApiKanban extends ApiBase {
             $updateData['task_order'] = $maxOrder + 1;
         }
         
+        // 记录任务更新历史
+        $this->recordTaskHistory( $taskId, (array)$task, $updateData, $user->getId(), 'update', 'Task updated' );
+        
         // 更新任务
         $result = $this->getDB()->update(
             'kanban_tasks',
@@ -1042,6 +1171,9 @@ class ApiKanban extends ApiBase {
             $this->dieWithError( 'Permission denied', 'permissiondenied' );
         }
         
+        // 记录任务删除历史
+        $this->recordTaskHistory( $taskId, (array)$task, null, $user->getId(), 'delete', 'Task deleted' );
+        
         // 软删除任务
         $result = $this->getDB()->update(
             'kanban_tasks',
@@ -1059,5 +1191,155 @@ class ApiKanban extends ApiBase {
         
         $this->getResult()->addValue( null, 'result', 'success' );
         $this->getResult()->addValue( null, 'message', 'Task deleted successfully' );
+    }
+    
+    /**
+     * 记录任务历史
+     */
+    private function recordTaskHistory( $taskId, $oldData, $newData, $userId, $changeType, $reason = null ) {
+        $db = $this->getDB();
+        $request = $this->getMain()->getRequest();
+        
+        // 获取客户端信息
+        $ipAddress = $request->getIP();
+        $userAgent = $request->getHeader( 'User-Agent' );
+        
+        // 如果是创建操作，记录所有字段
+        if ( $changeType === 'create' ) {
+            foreach ( $newData as $field => $value ) {
+                if ( $field === 'updated_by' ) continue; // 跳过系统字段
+                
+                $db->insert(
+                    'kanban_task_history',
+                    [
+                        'task_id' => $taskId,
+                        'field_name' => $field,
+                        'old_value' => null,
+                        'new_value' => $value,
+                        'changed_by' => $userId,
+                        'change_type' => $changeType,
+                        'change_reason' => $reason,
+                        'ip_address' => $ipAddress,
+                        'user_agent' => $userAgent
+                    ],
+                    __METHOD__
+                );
+            }
+        }
+        // 如果是更新操作，只记录有变化的字段
+        elseif ( $changeType === 'update' && $oldData && $newData ) {
+            foreach ( $newData as $field => $newValue ) {
+                if ( $field === 'updated_by' ) continue; // 跳过系统字段
+                
+                $oldValue = $oldData[$field] ?? null;
+                
+                // 只记录有变化的字段
+                if ( $oldValue != $newValue ) {
+                    $db->insert(
+                        'kanban_task_history',
+                        [
+                            'task_id' => $taskId,
+                            'field_name' => $field,
+                            'old_value' => $oldValue,
+                            'new_value' => $newValue,
+                            'changed_by' => $userId,
+                            'change_type' => $changeType,
+                            'change_reason' => $reason,
+                            'ip_address' => $ipAddress,
+                            'user_agent' => $userAgent
+                        ],
+                        __METHOD__
+                    );
+                }
+            }
+        }
+        // 如果是删除操作
+        elseif ( $changeType === 'delete' && $oldData ) {
+            $db->insert(
+                'kanban_task_history',
+                [
+                    'task_id' => $taskId,
+                    'field_name' => 'deleted',
+                    'old_value' => 'active',
+                    'new_value' => 'deleted',
+                    'changed_by' => $userId,
+                    'change_type' => $changeType,
+                    'change_reason' => $reason,
+                    'ip_address' => $ipAddress,
+                    'user_agent' => $userAgent
+                ],
+                __METHOD__
+            );
+        }
+    }
+    
+    /**
+     * 获取任务历史记录
+     */
+    private function getTaskHistory( $params ) {
+        $taskId = (int)$params['task_id'];
+        $limit = (int)($params['limit'] ?? 50);
+        $offset = (int)($params['offset'] ?? 0);
+        
+        // 检查权限
+        $user = $this->getUser();
+        
+        // 获取任务信息以检查权限
+        $task = $this->getDB()->selectRow(
+            'kanban_tasks',
+            '*',
+            [ 'task_id' => $taskId ],
+            __METHOD__
+        );
+        
+        if ( !$task ) {
+            $this->dieWithError( 'Task not found', 'tasknotfound' );
+        }
+        
+        if ( !$this->checkBoardPermission( $user->getId(), $task->board_id, 'view' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 获取历史记录
+        $history = $this->getDB()->select(
+            [ 'kanban_task_history', 'user' ],
+            [
+                'history_id',
+                'field_name',
+                'old_value',
+                'new_value',
+                'changed_at',
+                'change_type',
+                'change_reason',
+                'user_name'
+            ],
+            [ 'task_id' => $taskId ],
+            __METHOD__,
+            [
+                'ORDER BY' => 'changed_at DESC',
+                'LIMIT' => $limit,
+                'OFFSET' => $offset
+            ],
+            [
+                'user' => [ 'LEFT JOIN', 'kanban_task_history.changed_by = user.user_id' ]
+            ]
+        );
+        
+        $historyData = [];
+        foreach ( $history as $record ) {
+            $historyData[] = [
+                'history_id' => $record->history_id,
+                'field_name' => $record->field_name,
+                'old_value' => $record->old_value,
+                'new_value' => $record->new_value,
+                'changed_at' => $record->changed_at,
+                'change_type' => $record->change_type,
+                'change_reason' => $record->change_reason,
+                'changed_by' => $record->user_name
+            ];
+        }
+        
+        $this->getResult()->addValue( null, 'history', $historyData );
+        $this->getResult()->addValue( null, 'result', 'success' );
     }
 }
