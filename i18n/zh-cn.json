@@ -70,5 +70,12 @@
 	"kanbanboard-wip-info": "($1/$2)",
 	"kanbanboard": "看板",
 	"kanbanboard-board-list": "已有看板",
-	"kanbanboard-accessible-boards": "可访问的看板"
+	"kanbanboard-accessible-boards": "可访问的看板",
+	"kanbanboard-owned-boards": "我拥有的看板",
+	"kanbanboard-view-board": "查看看板",
+	"kanbanboard-created": "创建于 $1",
+	"kanbanboard-owner": "（所有者）",
+	"kanbanboard-board-name-required": "看板名称不能为空",
+	"kanbanboard-board-name-exists": "看板名称已存在",
+	"kanbanboard-create-error": "创建看板时发生错误：$1"
 }

@@ -2925,4 +2925,60 @@
         });
     });
 
+    // 复制看板引用代码功能
+    window.copyKanbanCode = function(button) {
+        const codeElement = button.parentElement.querySelector('.kanban-reference-code');
+        const code = codeElement.getAttribute('data-code');
+        
+        // 使用现代浏览器的 Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(function() {
+                showCopySuccess(button);
+            }).catch(function(err) {
+                console.error('复制失败:', err);
+                fallbackCopy(code, button);
+            });
+        } else {
+            // 降级方案
+            fallbackCopy(code, button);
+        }
+    };
+    
+    // 降级复制方案
+    function fallbackCopy(text, button) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showCopySuccess(button);
+            } else {
+                console.error('复制失败');
+            }
+        } catch (err) {
+            console.error('复制失败:', err);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+    
+    // 显示复制成功状态
+    function showCopySuccess(button) {
+        const originalText = button.textContent;
+        button.textContent = '已复制';
+        button.classList.add('copied');
+        
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.classList.remove('copied');
+        }, 2000);
+    }
+
 }() );

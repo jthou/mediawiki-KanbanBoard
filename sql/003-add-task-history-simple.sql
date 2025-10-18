@@ -19,3 +19,4 @@ CREATE TABLE IF NOT EXISTS /*_*/kanban_task_history (
     INDEX idx_change_type (change_type),
     INDEX idx_task_field (task_id, field_name)
 ) /*$wgDBTableOptions*/;
+

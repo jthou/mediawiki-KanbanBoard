@@ -13,6 +13,7 @@ use ApiMain;
 use MediaWiki\MediaWikiServices;
 use Wikimedia\ParamValidator\ParamValidator;
 use Wikimedia\Rdbms\LBFactory;
+use Exception;
 
 class ApiKanban extends ApiBase {
     

@@ -80,3 +80,4 @@ WHERE column_width IS NULL OR column_max_cards IS NULL OR column_is_collapsed IS
 
 
 
+
