@@ -182,7 +182,7 @@
         var header = document.createElement('div');
         header.className = 'kanban-header';
         
-        var title = document.createElement('h2');
+        var title = document.createElement('h3');
         title.textContent = boardData.board_name || '未命名看板';
         header.appendChild(title);
         
@@ -999,6 +999,9 @@
         
         // 添加全局点击事件来关闭菜单
         this.addGlobalMenuCloseListener();
+        
+        // 绑定卡片拖拽事件
+        this.bindColumnCardDragEvents();
     };
 
     /**
@@ -1111,6 +1114,7 @@
                     <h3>创建新任务</h3>
                     <button class="dialog-close" type="button">&times;</button>
                 </div>
+                <div class="dialog-body">
                 <form class="kanban-task-form">
                     <div class="form-group">
                         <label for="task-title">任务标题 *</label>
@@ -1120,7 +1124,7 @@
                     
                     <div class="form-group">
                         <label for="task-description">任务描述</label>
-                        <textarea id="task-description" name="description" rows="4" 
+                            <textarea id="task-description" name="description" rows="12" 
                                   placeholder="请输入任务详细描述"></textarea>
                     </div>
                     
@@ -1138,19 +1142,23 @@
                         <div class="form-group">
                             <label for="task-color">颜色</label>
                             <input type="color" id="task-color" name="color" value="#ffffff">
-                        </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="task-due-date">截止日期</label>
                         <input type="datetime-local" id="task-due-date" name="due_date">
                     </div>
-                    
+                        </div>
+                    </form>
+                </div>
                     <div class="dialog-footer">
+                    <div class="btn-group-left">
                         <button type="button" class="btn btn-secondary cancel-btn">取消</button>
+                    </div>
+                    <div class="btn-group-right">
                         <button type="submit" class="btn btn-primary save-btn">创建任务</button>
                     </div>
-                </form>
+                </div>
             </div>
         `;
         
@@ -1202,15 +1210,23 @@
         // 表单提交
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            self.createTask(form);
-            closeDialog();
+            self.createTask(form, dialog);
         });
+        
+        // 创建任务按钮点击事件
+        var saveBtn = dialog.querySelector('.save-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                self.createTask(form, dialog);
+            });
+        }
     };
 
     /**
      * 创建新任务
      */
-    KanbanColumn.prototype.createTask = function(form) {
+    KanbanColumn.prototype.createTask = function(form, dialog) {
         var self = this;
         var formData = new FormData(form);
         
@@ -1235,7 +1251,7 @@
         }
         
         // 显示加载状态
-        var saveBtn = form.querySelector('.save-btn');
+        var saveBtn = dialog.querySelector('.save-btn');
         var originalText = saveBtn.textContent;
         saveBtn.textContent = '创建中...';
         saveBtn.disabled = true;
@@ -1272,6 +1288,9 @@
                     
                     // 显示成功消息
                     self.showSuccessMessage('任务创建成功');
+                    
+                    // 关闭对话框
+                    dialog.remove();
                 } else {
                     alert('创建失败：' + (response.message || '未知错误'));
                 }
@@ -2331,13 +2350,13 @@
                 <div class="dialog-body">
                     <!-- 任务详情标签页 -->
                     <div class="tab-content active" id="tab-details">
-                        <form class="kanban-task-form">
-                            <div class="form-group">
-                                <label for="task-title">任务标题 *</label>
-                                <input type="text" id="task-title" name="title" value="${this.data.card_title || ''}" 
-                                       maxlength="500" required placeholder="请输入任务标题">
-                            </div>
-                            
+                <form class="kanban-task-form">
+                    <div class="form-group">
+                        <label for="task-title">任务标题 *</label>
+                        <input type="text" id="task-title" name="title" value="${this.data.card_title || ''}" 
+                               maxlength="500" required placeholder="请输入任务标题">
+                    </div>
+                    
                             <div class="form-group">
                                 <label for="task-description">任务描述</label>
                                 <textarea id="task-description" name="description" rows="8" 
@@ -2345,33 +2364,33 @@
                             </div>
                             
                             <div class="form-row">
-                                <div class="form-group">
-                                    <label for="task-status">任务状态</label>
-                                    <select id="task-status" name="status_id">
-                                        ${this.getStatusOptions()}
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="task-priority">优先级</label>
-                                    <select id="task-priority" name="priority">
-                                        <option value="low" ${this.data.card_priority === 'low' ? 'selected' : ''}>低</option>
-                                        <option value="medium" ${this.data.card_priority === 'medium' ? 'selected' : ''}>中</option>
-                                        <option value="high" ${this.data.card_priority === 'high' ? 'selected' : ''}>高</option>
-                                        <option value="urgent" ${this.data.card_priority === 'urgent' ? 'selected' : ''}>紧急</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="task-color">颜色</label>
-                                    <input type="color" id="task-color" name="color" 
-                                           value="${this.data.card_color || '#ffffff'}">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="task-due-date">截止日期</label>
-                                    <input type="datetime-local" id="task-due-date" name="due_date" 
-                                           value="${this.formatDateTimeForInput(this.data.card_due_date)}">
+                    <div class="form-group">
+                        <label for="task-status">任务状态</label>
+                        <select id="task-status" name="status_id">
+                            ${this.getStatusOptions()}
+                        </select>
+                    </div>
+                    
+                        <div class="form-group">
+                            <label for="task-priority">优先级</label>
+                            <select id="task-priority" name="priority">
+                                <option value="low" ${this.data.card_priority === 'low' ? 'selected' : ''}>低</option>
+                                <option value="medium" ${this.data.card_priority === 'medium' ? 'selected' : ''}>中</option>
+                                <option value="high" ${this.data.card_priority === 'high' ? 'selected' : ''}>高</option>
+                                <option value="urgent" ${this.data.card_priority === 'urgent' ? 'selected' : ''}>紧急</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="task-color">颜色</label>
+                            <input type="color" id="task-color" name="color" 
+                                   value="${this.data.card_color || '#ffffff'}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-due-date">截止日期</label>
+                        <input type="datetime-local" id="task-due-date" name="due_date" 
+                               value="${this.formatDateTimeForInput(this.data.card_due_date)}">
                                 </div>
                             </div>
                         </form>
@@ -2387,14 +2406,13 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="dialog-footer">
+                    </div>
+                    
+                    <div class="dialog-footer">
                     <div class="btn-group-left">
                         <button type="button" class="btn btn-danger delete-btn">删除任务</button>
                     </div>
                     <div class="btn-group-right">
-                        <button type="button" class="btn btn-secondary cancel-btn">关闭</button>
                         <button type="submit" class="btn btn-primary save-btn">保存更改</button>
                     </div>
                 </div>
@@ -2454,8 +2472,14 @@
         // 表单提交
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            self.saveTask(form);
-            closeDialog();
+            self.saveTask(form, dialog);
+        });
+        
+        // 保存按钮点击事件
+        var saveBtn = dialog.querySelector('.save-btn');
+        saveBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            self.saveTask(form, dialog);
         });
         
         // 标签页切换
@@ -2489,7 +2513,7 @@
     /**
      * 保存任务
      */
-    KanbanCard.prototype.saveTask = function(form) {
+    KanbanCard.prototype.saveTask = function(form, dialog) {
         var self = this;
         var formData = new FormData(form);
         
@@ -2515,7 +2539,7 @@
         }
         
         // 显示加载状态
-        var saveBtn = form.querySelector('.save-btn');
+        var saveBtn = dialog.querySelector('.save-btn');
         var originalText = saveBtn.textContent;
         saveBtn.textContent = '保存中...';
         saveBtn.disabled = true;
@@ -2545,6 +2569,9 @@
                     
                     // 显示成功消息
                     self.showSuccessMessage('任务已保存');
+                    
+                    // 关闭对话框
+                    dialog.remove();
                 } else {
                     alert('保存失败：' + (response.message || '未知错误'));
                 }
@@ -2980,5 +3007,182 @@
             button.classList.remove('copied');
         }, 2000);
     }
+
+    /**
+     * 绑定列的卡片拖拽事件
+     */
+    KanbanColumn.prototype.bindColumnCardDragEvents = function() {
+        var self = this;
+        
+        // 拖拽进入
+        this.cardsContainer.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            var board = self.board;
+            if (board && board.draggedCard && board.draggedCard.column !== self) {
+                self.handleCardDragEnter(e);
+            }
+        });
+        
+        // 拖拽悬停
+        this.cardsContainer.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            var board = self.board;
+            if (board && board.draggedCard && board.draggedCard.column !== self) {
+                self.handleCardDragOver(e);
+            }
+        });
+        
+        // 拖拽离开
+        this.cardsContainer.addEventListener('dragleave', function(e) {
+            // 只有当鼠标真正离开容器时才移除指示器
+            if (!self.cardsContainer.contains(e.relatedTarget)) {
+                self.removeCardDragIndicator();
+            }
+        });
+        
+        // 放置
+        this.cardsContainer.addEventListener('drop', function(e) {
+            e.preventDefault();
+            
+            var draggedCardId = e.dataTransfer.getData('text/plain');
+            var board = self.board;
+            if (board && board.draggedCard) {
+                var draggedCard = board.draggedCard;
+                self.handleCardDrop(draggedCard, e);
+                
+                // 清理拖拽状态
+                board.draggedCard = null;
+                board.draggedCardId = null;
+                
+                // 移除所有拖拽指示器和样式
+                draggedCard.removeCardDragIndicators();
+                draggedCard.removeDropTargetStyles();
+            }
+        });
+    };
+    
+    /**
+     * 处理卡片拖拽进入
+     */
+    KanbanColumn.prototype.handleCardDragEnter = function(e) {
+        // 如果列是空的，显示拖拽指示器
+        if (this.cards.length === 0) {
+            this.showEmptyColumnIndicator();
+        }
+    };
+    
+    /**
+     * 处理卡片拖拽悬停
+     */
+    KanbanColumn.prototype.handleCardDragOver = function(e) {
+        // 如果列是空的，保持指示器显示
+        if (this.cards.length === 0) {
+            this.showEmptyColumnIndicator();
+        }
+    };
+    
+    /**
+     * 处理卡片放置
+     */
+    KanbanColumn.prototype.handleCardDrop = function(draggedCard, e) {
+        var self = this;
+        
+        // 移除指示器
+        this.removeCardDragIndicator();
+        
+        // 如果拖拽到空列，直接添加到列的开头
+        if (this.cards.length === 0) {
+            this.moveCardToEmptyColumn(draggedCard);
+        }
+    };
+    
+    /**
+     * 显示空列拖拽指示器
+     */
+    KanbanColumn.prototype.showEmptyColumnIndicator = function() {
+        // 移除现有指示器
+        this.removeCardDragIndicator();
+        
+        // 创建指示器
+        var indicator = document.createElement('div');
+        indicator.className = 'kanban-card-drag-indicator empty-column';
+        indicator.textContent = '拖拽到此处';
+        indicator.style.textAlign = 'center';
+        indicator.style.padding = '20px';
+        indicator.style.color = '#666';
+        indicator.style.border = '2px dashed #ccc';
+        indicator.style.borderRadius = '8px';
+        indicator.style.margin = '10px';
+        
+        this.cardsContainer.appendChild(indicator);
+    };
+    
+    /**
+     * 移除卡片拖拽指示器
+     */
+    KanbanColumn.prototype.removeCardDragIndicator = function() {
+        var indicator = this.cardsContainer.querySelector('.kanban-card-drag-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    };
+    
+    /**
+     * 移动卡片到空列
+     */
+    KanbanColumn.prototype.moveCardToEmptyColumn = function(draggedCard) {
+        var self = this;
+        var board = this.board;
+        if (!board) return;
+        
+        var sourceColumn = draggedCard.column;
+        var sourceCards = sourceColumn.data.cards || [];
+        var targetCards = this.data.cards || [];
+        
+        // 找到拖拽卡片在源列中的索引
+        var draggedIndex = sourceCards.findIndex(function(card) {
+            return card.card_id === draggedCard.data.card_id;
+        });
+        
+        if (draggedIndex === -1) {
+            console.error('无法找到拖拽卡片索引');
+            return;
+        }
+        
+        // 从源列移除卡片
+        var cardData = sourceCards.splice(draggedIndex, 1)[0];
+        
+        // 更新卡片的列ID和状态
+        cardData.column_id = self.data.column_id;
+        cardData.status_id = self.data.column_id;
+        cardData.status_name = self.data.column_name;
+        cardData.task_order = 0;
+        
+        // 插入到目标列的开头
+        targetCards.splice(0, 0, cardData);
+        
+        // 更新卡片的列引用
+        draggedCard.column = self;
+        
+        // 重新渲染两个列
+        sourceColumn.renderCards();
+        self.renderCards();
+        
+        // 发送API请求保存新顺序和状态
+        draggedCard.saveCardOrder(board);
+    };
+    
+    /**
+     * 移除卡片
+     */
+    KanbanColumn.prototype.removeCard = function(card) {
+        var index = this.cards.indexOf(card);
+        if (index > -1) {
+            this.cards.splice(index, 1);
+            card.element.remove();
+        }
+    };
 
 }() );
