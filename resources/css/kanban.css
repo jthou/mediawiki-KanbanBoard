@@ -18,6 +18,165 @@
     border-color: #dee2e6 !important;
 }
 
+/* 搜索相关样式 */
+.kanban-search-notice {
+    background-color: #e8f4fd;
+    border: 1px solid #a2d7f0;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.kanban-search-notice a {
+    color: #0645ad;
+    text-decoration: none;
+}
+
+.kanban-search-notice a:hover {
+    text-decoration: underline;
+}
+
+/* 搜索结果中的看板任务样式 */
+.searchresult.kanban-task {
+    border-left: 4px solid #3498db;
+    background-color: #f8f9fa;
+}
+
+.searchresult.kanban-task .searchresult__title {
+    color: #2c3e50;
+    font-weight: bold;
+}
+
+.searchresult.kanban-task .searchresult__meta {
+    color: #7f8c8d;
+    font-size: 12px;
+}
+
+.searchresult.kanban-task .kanban-task-meta {
+    margin-top: 5px;
+    font-size: 12px;
+}
+
+.searchresult.kanban-task .kanban-task-meta span {
+    margin-right: 10px;
+    padding: 2px 6px;
+    background-color: #ecf0f1;
+    border-radius: 3px;
+}
+
+.searchresult.kanban-task .kanban-task-priority {
+    font-weight: bold;
+}
+
+.searchresult.kanban-task .kanban-task-priority.high {
+    color: #e74c3c;
+}
+
+.searchresult.kanban-task .kanban-task-priority.urgent {
+    color: #c0392b;
+}
+
+.searchresult.kanban-task .kanban-task-priority.medium {
+    color: #f39c12;
+}
+
+.searchresult.kanban-task .kanban-task-priority.low {
+    color: #27ae60;
+}
+
+/* 看板任务搜索页面样式 */
+.kanban-search-form {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.kanban-search-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #495057;
+}
+
+.kanban-search-form input,
+.kanban-search-form select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.kanban-search-form button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.kanban-search-form button:hover {
+    background-color: #0056b3;
+}
+
+.kanban-search-results {
+    margin-top: 20px;
+}
+
+.kanban-task-result {
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.kanban-task-result:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.kanban-task-title {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+    font-size: 18px;
+}
+
+.kanban-task-description {
+    color: #6c757d;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.kanban-task-meta {
+    margin-bottom: 15px;
+    font-size: 12px;
+}
+
+.kanban-task-meta span {
+    display: inline-block;
+    margin-right: 15px;
+    padding: 4px 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    color: #495057;
+}
+
+.kanban-no-results {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 40px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
 /* 看板容器 */
 .kanban-board {
     background: #f8f9fa;

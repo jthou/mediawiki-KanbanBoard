@@ -59,6 +59,14 @@
 				"UserFactory",
 				"TitleFactory"
 			]
+		},
+		"KanbanSearch": {
+			"class": "MediaWiki\\Extension\\KanbanBoard\\SpecialKanbanSearch",
+			"services": [
+				"DBLoadBalancerFactory",
+				"UserFactory",
+				"TitleFactory"
+			]
 		}
 	},
 	"APIModules": {
@@ -67,7 +75,16 @@
 		}
 	},
 	"Hooks": {
-		"ParserFirstCallInit": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onParserFirstCallInit"
+		"ParserFirstCallInit": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onParserFirstCallInit",
+		"SearchResultsAugment": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSearchResultsAugment",
+		"SpecialSearchResultsPrepend": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSpecialSearchResultsPrepend",
+		"ContentHandlerForModelID": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onContentHandlerForModelID",
+		"NamespaceIsMovable": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onNamespaceIsMovable",
+		"TitleExists": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onTitleExists",
+		"ArticleFromTitle": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onArticleFromTitle",
+		"SearchableNamespaces": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSearchableNamespaces",
+		"SearchGetNearMatch": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSearchGetNearMatch",
+		"SearchResultInitFromTitle": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSearchResultInitFromTitle"
 	},
 	"HookHandlers": {
 		"default": {
@@ -89,5 +106,27 @@
 			"value": false
 		}
 	},
+	"namespaces": [
+		{
+			"id": 3000,
+			"name": "Kanban",
+			"subpages": true,
+			"canonical": "Kanban",
+			"content": false,
+			"nonincludable": false,
+			"protection": "edit=autoconfirmed,move=autoconfirmed",
+			"aliases": ["看板"]
+		},
+		{
+			"id": 3001,
+			"name": "Kanban_Talk",
+			"subpages": true,
+			"canonical": "Kanban_Talk",
+			"content": false,
+			"nonincludable": false,
+			"protection": "edit=autoconfirmed,move=autoconfirmed",
+			"aliases": ["看板讨论"]
+		}
+	],
 	"manifest_version": 2
 }
