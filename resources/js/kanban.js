@@ -1762,6 +1762,11 @@
         this.data = cardData;
         this.column = column;
         
+        // 调试信息
+        if (!this.data.card_id) {
+            console.warn('卡片数据缺少 card_id:', this.data);
+        }
+        
         this.createElement();
     }
 
@@ -1805,8 +1810,9 @@
             if (e.target.classList.contains('kanban-card-drag-handle')) {
                 return;
             }
-                self.showEditDialog();
-            });
+            e.preventDefault();
+            self.showEditDialog();
+        });
             
         // 如果不是只读模式，添加拖拽功能
         if (!this.column.board.readOnly) {
@@ -2526,6 +2532,15 @@
             due_date: formData.get('due_date') || null,
             status_id: formData.get('status_id')
         };
+        
+        // 验证任务ID
+        if (!taskData.card_id || taskData.card_id === '') {
+            console.error('任务ID为空，无法保存任务');
+            console.error('this.data:', this.data);
+            console.error('taskData:', taskData);
+            alert('任务ID无效，无法保存任务');
+            return;
+        }
         
         // 验证数据
         if (!taskData.title) {
