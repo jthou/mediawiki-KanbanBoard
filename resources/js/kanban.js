@@ -2274,15 +2274,41 @@
         
         // 从当前列移除卡片
         var currentColumn = self.column;
-        if (currentColumn && currentColumn.element) {
-            currentColumn.element.removeChild(self.element);
+        if (currentColumn && currentColumn.cardsContainer && self.element.parentNode) {
+            currentColumn.cardsContainer.removeChild(self.element);
         }
         
         // 添加到目标列
-        var targetColumnElement = document.querySelector('[data-column-id="' + newStatusId + '"] .kanban-column-cards');
-        if (targetColumnElement) {
-            targetColumnElement.appendChild(self.element);
+        if (targetColumn && targetColumn.cardsContainer) {
+            targetColumn.cardsContainer.appendChild(self.element);
             self.column = targetColumn;
+            
+            // 从当前列的卡片数组中移除
+            if (currentColumn && currentColumn.cards) {
+                var cardIndex = currentColumn.cards.indexOf(self);
+                if (cardIndex > -1) {
+                    currentColumn.cards.splice(cardIndex, 1);
+                }
+            }
+            
+            // 添加到目标列的卡片数组中
+            if (targetColumn.cards) {
+                targetColumn.cards.push(self);
+            }
+            
+            // 移除目标列的"暂无卡片"提示
+            var noCardsMsg = targetColumn.cardsContainer.querySelector('.kanban-no-cards');
+            if (noCardsMsg) {
+                noCardsMsg.remove();
+            }
+            
+            // 如果当前列没有卡片了，显示"暂无卡片"提示
+            if (currentColumn && currentColumn.cards && currentColumn.cards.length === 0) {
+                var noCardsMsg = document.createElement('div');
+                noCardsMsg.className = 'kanban-no-cards';
+                noCardsMsg.textContent = '暂无卡片';
+                currentColumn.cardsContainer.appendChild(noCardsMsg);
+            }
         }
         
         // 重新渲染卡片
