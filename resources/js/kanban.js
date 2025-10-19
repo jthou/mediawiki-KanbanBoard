@@ -1811,8 +1811,8 @@
                 return;
             }
             e.preventDefault();
-            self.showEditDialog();
-        });
+                self.showEditDialog();
+            });
             
         // 如果不是只读模式，添加拖拽功能
         if (!this.column.board.readOnly) {
@@ -2247,6 +2247,12 @@
     KanbanCard.prototype.moveToNewStatus = function(newStatusId, taskData) {
         var self = this;
         
+        console.log('moveToNewStatus called:', {
+            newStatusId: newStatusId,
+            currentColumnId: self.data.column_id,
+            taskData: taskData
+        });
+        
         // 找到目标列
         var targetColumn = null;
         var board = self.column ? self.column.board : null;
@@ -2257,6 +2263,8 @@
                 }
             });
         }
+        
+        console.log('targetColumn found:', targetColumn);
         
         if (!targetColumn) {
             console.error('目标状态不存在:', newStatusId);
@@ -2274,32 +2282,49 @@
         
         // 从当前列移除卡片
         var currentColumn = self.column;
+        console.log('Removing card from current column:', {
+            currentColumn: currentColumn,
+            cardsContainer: currentColumn ? currentColumn.cardsContainer : null,
+            element: self.element,
+            parentNode: self.element.parentNode
+        });
+        
         if (currentColumn && currentColumn.cardsContainer && self.element.parentNode) {
             currentColumn.cardsContainer.removeChild(self.element);
+            console.log('Card removed from current column');
         }
         
         // 添加到目标列
+        console.log('Adding card to target column:', {
+            targetColumn: targetColumn,
+            cardsContainer: targetColumn ? targetColumn.cardsContainer : null
+        });
+        
         if (targetColumn && targetColumn.cardsContainer) {
             targetColumn.cardsContainer.appendChild(self.element);
             self.column = targetColumn;
+            console.log('Card added to target column');
             
             // 从当前列的卡片数组中移除
             if (currentColumn && currentColumn.cards) {
                 var cardIndex = currentColumn.cards.indexOf(self);
                 if (cardIndex > -1) {
                     currentColumn.cards.splice(cardIndex, 1);
+                    console.log('Card removed from current column cards array');
                 }
             }
             
             // 添加到目标列的卡片数组中
             if (targetColumn.cards) {
                 targetColumn.cards.push(self);
+                console.log('Card added to target column cards array');
             }
             
             // 移除目标列的"暂无卡片"提示
             var noCardsMsg = targetColumn.cardsContainer.querySelector('.kanban-no-cards');
             if (noCardsMsg) {
                 noCardsMsg.remove();
+                console.log('Removed no-cards message from target column');
             }
             
             // 如果当前列没有卡片了，显示"暂无卡片"提示
@@ -2308,6 +2333,7 @@
                 noCardsMsg.className = 'kanban-no-cards';
                 noCardsMsg.textContent = '暂无卡片';
                 currentColumn.cardsContainer.appendChild(noCardsMsg);
+                console.log('Added no-cards message to current column');
             }
         }
         
