@@ -1756,11 +1756,31 @@
     };
 
     /**
+     * 防抖函数
+     */
+    function debounce(func, wait) {
+        var timeout;
+        return function executedFunction() {
+            var context = this;
+            var args = arguments;
+            var later = function() {
+                timeout = null;
+                func.apply(context, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    /**
      * 卡片类
      */
     function KanbanCard(cardData, column) {
         this.data = cardData;
         this.column = column;
+        
+        // 缓存DOM元素引用
+        this.cachedElements = {};
         
         // 调试信息
         if (!this.data.card_id) {
@@ -1769,6 +1789,23 @@
         
         this.createElement();
     }
+
+    /**
+     * 缓存DOM元素查询
+     */
+    KanbanCard.prototype.getCachedElement = function(selector, cacheKey) {
+        if (!this.cachedElements[cacheKey]) {
+            this.cachedElements[cacheKey] = this.element.querySelector(selector);
+        }
+        return this.cachedElements[cacheKey];
+    };
+    
+    /**
+     * 清除缓存
+     */
+    KanbanCard.prototype.clearCache = function() {
+        this.cachedElements = {};
+    };
 
     KanbanCard.prototype.createElement = function() {
         var self = this;
@@ -2687,11 +2724,13 @@
      * 更新卡片显示
      */
     KanbanCard.prototype.updateCardDisplay = function() {
-        var titleElement = this.element.querySelector('.kanban-card-title');
-        var descriptionElement = this.element.querySelector('.kanban-card-description');
+        var titleElement = this.getCachedElement('.kanban-card-title', 'title');
+        var descriptionElement = this.getCachedElement('.kanban-card-description', 'description');
         
         // 更新标题
-        titleElement.textContent = this.data.card_title || '无标题';
+        if (titleElement) {
+            titleElement.textContent = this.data.card_title || '无标题';
+        }
         
         // 更新描述
         if (this.data.card_description) {
@@ -2699,10 +2738,14 @@
                 descriptionElement = document.createElement('div');
                 descriptionElement.className = 'kanban-card-description';
                 titleElement.parentNode.insertBefore(descriptionElement, titleElement.nextSibling);
+                // 更新缓存
+                this.cachedElements.description = descriptionElement;
             }
             descriptionElement.textContent = this.data.card_description;
         } else if (descriptionElement) {
             descriptionElement.remove();
+            // 清除缓存
+            this.cachedElements.description = null;
         }
         
         // 更新优先级样式
