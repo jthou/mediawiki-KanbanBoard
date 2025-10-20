@@ -43,8 +43,9 @@ class KanbanNamespaceHandler {
     public static function onNamespaceIsMovable( $ns, &$result ) {
         if ( $ns === self::NS_KANBAN || $ns === self::NS_KANBAN_TALK ) {
             $result = false; // 看板页面不可移动
-            return false;
+            return false; // 返回false表示我们已经处理了这个命名空间
         }
+        // 对于其他命名空间，不修改$result，让MediaWiki使用默认行为
         return true;
     }
     

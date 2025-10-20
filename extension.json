@@ -79,7 +79,6 @@
 		"SearchResultsAugment": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSearchResultsAugment",
 		"SpecialSearchResultsPrepend": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSpecialSearchResultsPrepend",
 		"ContentHandlerForModelID": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onContentHandlerForModelID",
-		"NamespaceIsMovable": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onNamespaceIsMovable",
 		"TitleExists": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onTitleExists",
 		"ArticleFromTitle": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onArticleFromTitle",
 		"SearchableNamespaces": "MediaWiki\\Extension\\KanbanBoard\\Hooks::onSearchableNamespaces",
