@@ -47,7 +47,7 @@
             }
             self.hideLoading();
         }).fail(function(error) {
-            console.warn('API加载失败，使用静态数据:', error);
+            // API加载失败，使用静态数据
             // 使用静态测试数据
             self.loadStaticData();
         });
@@ -376,12 +376,12 @@
         
         // 发送API请求
         this.api.post(params).done(function(data) {
-            console.log('API添加列成功:', data);
+            // API添加列成功
             self.hideAddColumnDialog();
             self.loadBoard(); // 重新加载看板
             self.showSuccessMessage('列添加成功！');
         }).fail(function(error) {
-            console.warn('API添加列失败，使用前端模拟:', error);
+            // API添加列失败，使用前端模拟
             // 前端模拟添加列
             self.addColumnToFrontend(params);
             self.hideAddColumnDialog();
@@ -547,7 +547,7 @@
         // 获取拖拽手柄
         var dragHandle = column.element.querySelector('.kanban-column-drag-handle');
         if (!dragHandle) {
-            console.warn('拖拽手柄未找到');
+            // 拖拽手柄未找到
             return;
         }
         
@@ -838,7 +838,7 @@
             };
         });
         
-        console.log('发送列顺序数据:', columnOrders);
+        // 发送列顺序数据
         
         // 发送API请求
         var params = {
@@ -848,13 +848,13 @@
             column_orders: JSON.stringify(columnOrders)
         };
         
-        console.log('API请求参数:', params);
+        // API请求参数
         
         this.api.post(params).done(function(data) {
-            console.log('列顺序保存成功:', data);
+            // 列顺序保存成功
             self.showSuccessMessage('列顺序已更新');
         }).fail(function(error) {
-            console.error('保存列顺序失败:', error);
+            // 保存列顺序失败
             self.showErrorMessage('保存列顺序失败，请刷新页面重试');
             
             // 失败时重新加载看板
@@ -1086,7 +1086,7 @@
                 this.showDeleteColumnDialog();
                 break;
             default:
-                console.warn('未知的菜单动作:', action);
+                // 未知的菜单动作
         }
     };
 
@@ -1296,7 +1296,7 @@
                 }
             })
             .catch(function(error) {
-                console.error('创建任务失败:', error);
+                // 创建任务失败
                 alert('创建失败，请稍后重试');
             })
             .finally(function() {
@@ -1515,7 +1515,7 @@
                 }
             })
             .catch(function(error) {
-                console.error('更新列失败:', error);
+                // 更新列失败
                 alert('更新失败，请稍后重试');
             })
             .finally(function() {
@@ -1728,7 +1728,7 @@
         
         // 发送API请求
         this.board.api.post(params).done(function(data) {
-            console.log('API删除列成功:', data);
+            // API删除列成功
             self.board.loadBoard(); // 重新加载看板
             self.board.showSuccessMessage('列删除成功！');
         }).fail(function(error) {
@@ -2199,7 +2199,7 @@
             card_orders: JSON.stringify(cardOrders)
         };
         
-        console.log('API请求参数:', params);
+        // API请求参数
         
         board.api.post(params).done(function(data) {
             console.log('API保存卡片顺序成功:', data);
@@ -2576,7 +2576,7 @@
         var formData = new FormData(form);
         
         var taskData = {
-            card_id: this.data.card_id,
+            card_id: this.data.card_id || this.element.dataset.cardId,
             title: formData.get('title').trim(),
             description: formData.get('description').trim(),
             priority: formData.get('priority'),
@@ -2587,10 +2587,11 @@
         
         // 验证任务ID
         if (!taskData.card_id || taskData.card_id === '') {
+            // 任务ID为空，无法保存任务
             console.error('任务ID为空，无法保存任务');
             console.error('this.data:', this.data);
             console.error('taskData:', taskData);
-            alert('任务ID无效，无法保存任务');
+            alert('任务ID无效，无法保存任务。请刷新页面后重试。');
             return;
         }
         
@@ -2644,8 +2645,9 @@
                 }
             })
             .catch(function(error) {
+                // 保存任务失败
                 console.error('保存任务失败:', error);
-                alert('保存失败，请稍后重试');
+                self.showErrorMessage('保存失败，请稍后重试');
             })
             .finally(function() {
                 saveBtn.textContent = originalText;
