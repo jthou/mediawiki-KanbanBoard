@@ -1,7 +1,7 @@
 {
 	"@metadata": {
 		"authors": [
-			"Your Name"
+			"Justin Hou (jthou@hotmail.com)"
 		]
 	},
 	"kanbanboard-desc": "看板任务管理系统",
@@ -45,5 +45,11 @@
 	"kanbanboard-search-notice": "找到 $1 个相关看板任务",
 	"kanbanboard-search-link": "查看看板任务",
 	"kanbanboard-namespace-kanban": "看板",
-	"kanbanboard-namespace-kanban-talk": "看板讨论"
+	"kanbanboard-namespace-kanban-talk": "看板讨论",
+	"special-kanbanboard": "看板管理",
+	"special-kanbansearch": "看板搜索",
+	"kanbanboard-my-board": "我的看板",
+	"kanbanboard-no-boards": "暂无看板，请先创建一个看板。",
+	"kanbanboard-board-management": "看板管理",
+	"kanbanboard-all-boards": "所有看板"
 }

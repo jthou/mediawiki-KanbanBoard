@@ -63,7 +63,7 @@ class SpecialKanbanBoard extends SpecialPage {
     }
     
     /**
-     * 显示看板列表
+     * 显示所有看板
      */
     private function showBoardList() {
         $user = $this->getUser();
@@ -78,15 +78,6 @@ class SpecialKanbanBoard extends SpecialPage {
             [ 'ORDER BY' => 'board_created_at DESC' ]
         );
         
-        // 获取用户拥有的看板
-        $ownedBoards = $db->select(
-            'kanban_boards',
-            '*',
-            [ 'board_owner_id' => $user->getId() ],
-            __METHOD__,
-            [ 'ORDER BY' => 'board_created_at DESC' ]
-        );
-        
         $html = Html::element( 'h2', [], $this->msg( 'kanbanboard-board-list' )->text() );
         
         // 创建新看板按钮
@@ -97,19 +88,81 @@ class SpecialKanbanBoard extends SpecialPage {
         
         $html .= Html::element( 'hr' );
         
-        // 显示所有看板表格
+        // 显示管理表格
         if ( $allBoards->numRows() > 0 ) {
-            $html .= Html::element( 'h3', [], '所有看板' );
+            $html .= Html::element( 'h3', [], $this->msg( 'kanbanboard-board-management' )->text() );
             $html .= $this->renderBoardTable( $allBoards, $user );
-        }
-        
-        // 显示拥有的看板表格
-        if ( $ownedBoards->numRows() > 0 ) {
-            $html .= Html::element( 'h3', [], $this->msg( 'kanbanboard-owned-boards' )->text() );
-            $html .= $this->renderBoardTable( $ownedBoards, $user, true );
+            
+            $html .= Html::element( 'hr' );
+            
+            // 显示嵌入的看板
+            $html .= Html::element( 'h2', [], $this->msg( 'kanbanboard-all-boards' )->text() );
+            foreach ( $allBoards as $board ) {
+                $html .= $this->renderEmbeddedBoard( $board, $user );
+            }
+        } else {
+            $html .= Html::element( 'p', [ 'class' => 'kanban-no-boards' ], $this->msg( 'kanbanboard-no-boards' )->text() );
         }
         
         $this->getOutput()->addHTML( $html );
+    }
+    
+    /**
+     * 渲染嵌入的看板
+     */
+    private function renderEmbeddedBoard( $board, $user ) {
+        $html = Html::openElement( 'div', [ 
+            'class' => 'kanban-board-container',
+            'style' => 'margin: 20px 0; border: 1px solid #ddd; border-radius: 8px; padding: 20px;'
+        ] );
+        
+        // 看板标题和描述
+        $html .= Html::element( 'h3', [ 
+            'style' => 'margin: 0 0 10px 0; color: #2c3e50;'
+        ], $board->board_name );
+        
+        if ( $board->board_description ) {
+            $html .= Html::element( 'p', [ 
+                'style' => 'margin: 0 0 15px 0; color: #6c757d;'
+            ], $board->board_description );
+        }
+        
+        // 看板元信息
+        $html .= Html::openElement( 'div', [ 
+            'style' => 'margin-bottom: 15px; font-size: 12px; color: #6c757d;'
+        ] );
+        
+        $isOwner = $board->board_owner_id == $user->getId();
+        if ( $isOwner ) {
+            $html .= Html::element( 'span', [ 
+                'style' => 'background: #e3f2fd; padding: 2px 8px; border-radius: 12px; margin-right: 10px;'
+            ], $this->msg( 'kanbanboard-my-board' )->text() );
+        }
+        
+        $permissionText = $board->visibility === 'public' ? '公开' : '私有';
+        $permissionClass = $board->visibility === 'public' ? 'kanban-permission-public' : 'kanban-permission-private';
+        $html .= Html::element( 'span', [ 
+            'style' => 'background: #f8f9fa; padding: 2px 8px; border-radius: 12px; margin-right: 10px;'
+        ], $permissionText );
+        
+        $html .= Html::element( 'span', [], '创建于 ' . $this->getLanguage()->userDate( $board->board_created_at, $user ) );
+        $html .= Html::closeElement( 'div' );
+        
+        // 嵌入看板组件
+        $html .= Html::openElement( 'div', [ 
+            'class' => 'kanban-board',
+            'data-board-id' => $board->board_id,
+            'data-readonly' => 'false',
+            'style' => 'min-height: 200px;'
+        ] );
+        $html .= Html::element( 'div', [ 
+            'class' => 'kanban-loading'
+        ], $this->msg( 'kanbanboard-loading' )->text() );
+        $html .= Html::closeElement( 'div' );
+        
+        $html .= Html::closeElement( 'div' );
+        
+        return $html;
     }
     
     /**
