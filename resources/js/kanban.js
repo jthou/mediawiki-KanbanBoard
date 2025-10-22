@@ -1203,7 +1203,15 @@
         // 调用API创建任务
         this.createTaskAPI(taskData)
             .then(function(response) {
+                console.log('创建任务API响应:', response);
                 if (response.result === 'success') {
+                    // 检查task_id是否存在
+                    if (!response.task_id) {
+                        console.error('API响应中缺少task_id:', response);
+                        alert('创建失败：服务器响应格式错误');
+                        return;
+                    }
+                    
                     // 创建新的卡片元素
                     var newCardData = {
                         card_id: response.task_id,
@@ -1216,6 +1224,8 @@
                         card_order: self.cards.length,
                         card_created_at: new Date().toISOString()
                     };
+                    
+                    console.log('创建新卡片数据:', newCardData);
                     
                     // 创建卡片对象并添加到列中
                     var newCard = new KanbanCard(newCardData, self);
@@ -1241,6 +1251,7 @@
             })
             .catch(function(error) {
                 // 创建任务失败
+                console.error('创建任务失败:', error);
                 alert('创建失败，请稍后重试');
             })
             .finally(function() {
@@ -1727,6 +1738,7 @@
         this.cachedElements = {};
         
         // 调试信息
+        console.log('创建KanbanCard对象:', this.data);
         if (!this.data.card_id) {
             console.warn('卡片数据缺少 card_id:', this.data);
         }
@@ -1757,6 +1769,8 @@
         this.element = document.createElement('div');
         this.element.className = 'kanban-card';
         this.element.dataset.cardId = this.data.card_id;
+        
+        console.log('设置卡片DOM元素cardId:', this.data.card_id, '实际设置的值:', this.element.dataset.cardId);
         
         // 根据优先级设置颜色
         if (this.data.card_priority === 'high' || this.data.card_priority === 'urgent') {
@@ -2163,12 +2177,27 @@
         // 更新卡片的列引用
         draggedCard.column = targetColumn;
         
-        // 重新渲染两个列
+        // 重新渲染两个列（但不更新完成状态）
         sourceColumn.renderCards();
         targetColumn.renderCards();
         
         // 发送API请求保存新顺序和状态
-        this.saveCardOrder(board);
+        this.saveCardOrder(board).then(function() {
+            // API成功后，根据目标列的状态更新完成时间
+            if (targetColumn.data.is_terminal && !cardData.card_completed_at) {
+                cardData.card_completed_at = new Date().toISOString();
+            } else if (!targetColumn.data.is_terminal && cardData.card_completed_at) {
+                cardData.card_completed_at = null;
+            }
+            
+            // 重新渲染卡片以显示正确的完成状态
+            sourceColumn.renderCards();
+            targetColumn.renderCards();
+        }).catch(function(error) {
+            console.error('保存卡片顺序失败:', error);
+            // API失败时，恢复原始状态
+            board.loadBoard();
+        });
     };
 
     /**
@@ -2177,41 +2206,40 @@
     KanbanCard.prototype.saveCardOrder = function(board) {
         var self = this;
         
-        // 准备卡片顺序数据
-        var cardOrders = [];
-        if (board && board.columns) {
-            board.columns.forEach(function(column) {
-                if (column.data.cards) {
-                    column.data.cards.forEach(function(card, index) {
-                        cardOrders.push({
-                            card_id: card.card_id,
-                            order: index + 1,
-                            status_id: column.data.column_id
+        return new Promise(function(resolve, reject) {
+            // 准备卡片顺序数据
+            var cardOrders = [];
+            if (board && board.columns) {
+                board.columns.forEach(function(column) {
+                    if (column.data.cards) {
+                        column.data.cards.forEach(function(card, index) {
+                            cardOrders.push({
+                                card_id: card.card_id,
+                                order: index + 1,
+                                status_id: column.data.column_id
+                            });
                         });
-                    });
-                }
-            });
-        }
-        
-        // 发送API请求
-        var params = {
-            action: 'kanban',
-            kanban_action: 'reordercards',
-            board_id: board.boardId,
-            card_orders: JSON.stringify(cardOrders)
-        };
-        
-        // API请求参数
-        
-        board.api.post(params).done(function(data) {
-            console.log('API保存卡片顺序成功:', data);
-            self.showSuccessMessage('卡片顺序已保存');
-        }).fail(function(error) {
-            console.error('保存卡片顺序失败:', error);
-            self.showErrorMessage('保存卡片顺序失败，请刷新页面重试');
+                    }
+                });
+            }
             
-            // 失败时重新加载看板
-            board.loadBoard();
+            // 发送API请求
+            var params = {
+                action: 'kanban',
+                kanban_action: 'reordercards',
+                board_id: board.boardId,
+                card_orders: JSON.stringify(cardOrders)
+            };
+            
+            board.api.post(params).done(function(data) {
+                console.log('API保存卡片顺序成功:', data);
+                self.showSuccessMessage('卡片顺序已保存');
+                resolve(data);
+            }).fail(function(error) {
+                console.error('保存卡片顺序失败:', error);
+                self.showErrorMessage('保存卡片顺序失败，请刷新页面重试');
+                reject(error);
+            });
         });
     };
 
@@ -2633,11 +2661,10 @@
                         self.data.card_color = taskData.color;
                         self.data.card_due_date = taskData.due_date;
                         
-                        // 根据任务状态更新completed_at字段
-                        if (self.isTaskCompleted()) {
-                            self.data.card_completed_at = taskData.due_date;
-                        } else {
-                            self.data.card_completed_at = null;
+                        // 使用API返回的更新后的任务数据
+                        if (response.task) {
+                            self.data.card_completed_at = response.task.card_completed_at;
+                            self.data.card_updated_at = response.task.card_updated_at;
                         }
                         
                         // 重新渲染卡片
@@ -2915,17 +2942,30 @@
      * 判断任务是否已完成
      */
     KanbanCard.prototype.isTaskCompleted = function() {
+        // 首先检查card_id是否存在，如果不存在说明卡片数据有问题
+        if (!this.data.card_id) {
+            console.warn('卡片缺少card_id，无法判断完成状态:', this.data);
+            return false;
+        }
+        
+        // 检查column和board是否存在
+        if (!this.column || !this.column.board || !this.column.board.columns) {
+            console.warn('卡片缺少必要的列或看板信息，无法判断完成状态');
+            return false;
+        }
+        
         // 检查当前状态是否为终态
         var currentColumn = this.column.board.columns.find(function(col) {
             return col.data.column_id == this.data.column_id;
         }.bind(this));
         
         if (currentColumn && currentColumn.data.is_terminal) {
-            return true;
+            // 只有在有明确的completed_at字段时才显示为已完成
+            return this.data.card_completed_at !== null && this.data.card_completed_at !== undefined && this.data.card_completed_at !== '';
         }
         
-        // 如果没有找到当前状态信息，则根据completed_at字段判断
-        return this.data.card_completed_at !== null && this.data.card_completed_at !== undefined;
+        // 非终态列不应该显示为已完成
+        return false;
     };
     
     /**

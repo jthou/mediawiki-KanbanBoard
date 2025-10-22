@@ -1022,6 +1022,40 @@ class ApiKanban extends ApiBase {
                     }
                     
                     $updateData['status_id'] = $newStatusId;
+                    
+                    // 获取当前任务和新状态信息
+                    $currentTask = $db->selectRow(
+                        'kanban_tasks',
+                        [ 'status_id', 'completed_at' ],
+                        [ 'task_id' => $cardId ],
+                        __METHOD__
+                    );
+                    
+                    $newStatus = $db->selectRow(
+                        'kanban_statuses',
+                        [ 'is_terminal' ],
+                        [ 'status_id' => $newStatusId ],
+                        __METHOD__
+                    );
+                    
+                    $oldStatus = null;
+                    if ( $currentTask && $currentTask->status_id ) {
+                        $oldStatus = $db->selectRow(
+                            'kanban_statuses',
+                            [ 'is_terminal' ],
+                            [ 'status_id' => $currentTask->status_id ],
+                            __METHOD__
+                        );
+                    }
+                    
+                    // 如果移动到终态列且之前没有完成时间，设置完成时间
+                    if ( $newStatus && $newStatus->is_terminal && !$currentTask->completed_at ) {
+                        $updateData['completed_at'] = $db->timestamp();
+                    }
+                    // 如果从终态列移出，清空完成时间
+                    elseif ( $oldStatus && $oldStatus->is_terminal && !$newStatus->is_terminal ) {
+                        $updateData['completed_at'] = null;
+                    }
                 }
                 
                 // 更新卡片顺序和状态
@@ -1269,8 +1303,28 @@ class ApiKanban extends ApiBase {
             $this->dieWithError( 'Failed to update task', 'updatefailed' );
         }
         
+        // 获取更新后的任务数据
+        $updatedTask = $this->getDB()->selectRow(
+            'kanban_tasks',
+            '*',
+            [ 'task_id' => $taskId ],
+            __METHOD__
+        );
+        
         $this->getResult()->addValue( null, 'result', 'success' );
         $this->getResult()->addValue( null, 'message', 'Task updated successfully' );
+        $this->getResult()->addValue( null, 'task', [
+            'card_id' => $updatedTask->task_id,
+            'card_title' => $updatedTask->title,
+            'card_description' => $updatedTask->description,
+            'card_priority' => $updatedTask->priority,
+            'card_color' => $updatedTask->color,
+            'card_due_date' => $updatedTask->due_date,
+            'card_completed_at' => $updatedTask->completed_at,
+            'card_created_at' => $updatedTask->created_at,
+            'card_updated_at' => $updatedTask->updated_at,
+            'column_id' => $updatedTask->status_id
+        ] );
     }
     
     /**
