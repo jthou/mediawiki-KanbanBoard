@@ -2970,3 +2970,24 @@
 }
 
 /* 统计页面样式结束 */
+
+/* 看板列表链接样式 */
+.kanban-board-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.2s ease;
+}
+
+.kanban-board-link:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.kanban-board-link:visited {
+    color: #6f42c1;
+}
+
+.kanban-board-link:active {
+    color: #dc3545;
+}

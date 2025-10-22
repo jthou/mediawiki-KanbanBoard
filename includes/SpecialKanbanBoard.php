@@ -245,10 +245,18 @@ JS
             'style' => 'margin: 20px 0; border: 1px solid #ddd; border-radius: 8px; padding: 20px;'
         ] );
         
-        // 看板标题和描述
+        // 看板标题和描述（添加链接）
+        $boardUrl = $this->getPageTitle()->getLocalURL( [ 'board' => $board->board_id ] );
         $html .= Html::element( 'h3', [ 
             'style' => 'margin: 0 0 10px 0; color: #2c3e50;'
+        ] );
+        $html .= Html::element( 'a', [ 
+            'href' => $boardUrl,
+            'class' => 'kanban-board-link',
+            'title' => '进入看板：' . $board->board_name,
+            'style' => 'color: #007bff; text-decoration: none; font-weight: bold;'
         ], $board->board_name );
+        $html .= Html::closeElement( 'h3' );
         
         if ( $board->board_description ) {
             $html .= Html::element( 'p', [ 
@@ -698,9 +706,14 @@ JS
             
             $html .= Html::openElement( 'tr' );
             
-            // 看板名称
+            // 看板名称（添加链接）
             $html .= Html::openElement( 'td' );
-            $html .= Html::element( 'strong', [], $board->board_name );
+            $boardUrl = $this->getPageTitle()->getLocalURL( [ 'board' => $board->board_id ] );
+            $html .= Html::element( 'a', [ 
+                'href' => $boardUrl,
+                'class' => 'kanban-board-link',
+                'title' => '进入看板：' . $board->board_name
+            ], $board->board_name );
             $html .= Html::closeElement( 'td' );
             
             // 描述
