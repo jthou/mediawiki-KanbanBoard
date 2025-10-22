@@ -1133,7 +1133,7 @@ class ApiKanban extends ApiBase {
         ) ?: 1;
         
         // 插入新任务
-        $taskId = $this->getDB()->insert(
+        $result = $this->getDB()->insert(
             'kanban_tasks',
             [
                 'board_id' => $boardId,
@@ -1150,8 +1150,15 @@ class ApiKanban extends ApiBase {
             __METHOD__
         );
         
-        if ( !$taskId ) {
+        if ( !$result ) {
             $this->dieWithError( 'Failed to create task', 'createfailed' );
+        }
+        
+        // 获取新插入的任务ID
+        $taskId = $this->getDB()->insertId();
+        
+        if ( !$taskId ) {
+            $this->dieWithError( 'Failed to get task ID', 'getidfailed' );
         }
         
         // 记录任务创建历史
