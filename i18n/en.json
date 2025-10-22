@@ -51,5 +51,20 @@
 	"kanbanboard-my-board": "My Board",
 	"kanbanboard-no-boards": "No boards available. Please create a board first.",
 	"kanbanboard-board-management": "Board Management",
-	"kanbanboard-all-boards": "All Boards"
+	"kanbanboard-all-boards": "All Boards",
+	"kanbanboard-milestones": "Milestones",
+	"kanbanboard-add-milestone": "Add Milestone",
+	"kanbanboard-edit-milestone": "Edit Milestone",
+	"kanbanboard-delete-milestone": "Delete Milestone",
+	"kanbanboard-milestone-title": "Milestone Title",
+	"kanbanboard-milestone-description": "Milestone Description",
+	"kanbanboard-milestone-target-date": "Target Date",
+	"kanbanboard-milestone-completed-date": "Completed Date",
+	"kanbanboard-milestone-status": "Status",
+	"kanbanboard-milestone-status-planned": "Planned",
+	"kanbanboard-milestone-status-in-progress": "In Progress",
+	"kanbanboard-milestone-status-completed": "Completed",
+	"kanbanboard-milestone-status-cancelled": "Cancelled",
+	"kanbanboard-milestone-color": "Color",
+	"kanbanboard-milestone-timeline": "Timeline"
 }

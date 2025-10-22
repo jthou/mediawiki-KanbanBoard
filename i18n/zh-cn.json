@@ -51,5 +51,20 @@
 	"kanbanboard-my-board": "我的看板",
 	"kanbanboard-no-boards": "暂无看板，请先创建一个看板。",
 	"kanbanboard-board-management": "看板管理",
-	"kanbanboard-all-boards": "所有看板"
+	"kanbanboard-all-boards": "所有看板",
+	"kanbanboard-milestones": "里程碑",
+	"kanbanboard-add-milestone": "添加里程碑",
+	"kanbanboard-edit-milestone": "编辑里程碑",
+	"kanbanboard-delete-milestone": "删除里程碑",
+	"kanbanboard-milestone-title": "里程碑标题",
+	"kanbanboard-milestone-description": "里程碑描述",
+	"kanbanboard-milestone-target-date": "目标日期",
+	"kanbanboard-milestone-completed-date": "完成日期",
+	"kanbanboard-milestone-status": "状态",
+	"kanbanboard-milestone-status-planned": "计划中",
+	"kanbanboard-milestone-status-in-progress": "进行中",
+	"kanbanboard-milestone-status-completed": "已完成",
+	"kanbanboard-milestone-status-cancelled": "已取消",
+	"kanbanboard-milestone-color": "颜色",
+	"kanbanboard-milestone-timeline": "时间轴"
 }

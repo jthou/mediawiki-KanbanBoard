@@ -32,6 +32,10 @@ class ApiKanban extends ApiBase {
         $params = $this->extractRequestParams();
         $action = $params['kanban_action'];
         
+        // 添加调试日志
+        wfDebugLog('kanbanboard', 'API调用: ' . $action . ', 参数: ' . json_encode($params));
+        error_log('KanbanBoard API调用: ' . $action . ', 参数: ' . json_encode($params));
+        
         switch ( $action ) {
             case 'getboard':
                 $this->getBoard( $params );
@@ -63,6 +67,36 @@ class ApiKanban extends ApiBase {
             case 'gethistory':
                 $this->getTaskHistory( $params );
                 break;
+            case 'createmilestone':
+                $this->createMilestone( $params );
+                break;
+            case 'updatemilestone':
+                $this->updateMilestone( $params );
+                break;
+            case 'deletemilestone':
+                $this->deleteMilestone( $params );
+                break;
+            case 'getmilestones':
+                $this->getMilestones( $params );
+                break;
+            case 'getstats':
+                $this->getStats( $params );
+                break;
+            case 'hideboard':
+                $this->hideBoard( $params );
+                break;
+            case 'archiveboard':
+                $this->archiveBoard( $params );
+                break;
+            case 'deleteboard':
+                $this->deleteBoard( $params );
+                break;
+            case 'restoreboard':
+                $this->restoreBoard( $params );
+                break;
+            case 'getboards':
+                $this->getBoards( $params );
+                break;
             case 'test':
                 $this->test();
                 break;
@@ -85,11 +119,16 @@ class ApiKanban extends ApiBase {
     private function getBoard( $params ) {
         $boardId = (int)$params['board_id'];
         
+        wfDebugLog('kanbanboard', '获取看板数据: board_id=' . $boardId);
+        
         // 检查看板是否存在
         $board = $this->getBoardData( $boardId );
         if ( !$board ) {
+            wfDebugLog('kanbanboard', '看板不存在: board_id=' . $boardId);
             $this->dieWithError( 'Board not found', 'boardnotfound' );
         }
+        
+        wfDebugLog('kanbanboard', '看板数据: ' . json_encode($board));
         
         // 检查查看权限
         $user = $this->getUser();
@@ -100,6 +139,12 @@ class ApiKanban extends ApiBase {
         // 获取列和卡片数据
         $columns = $this->getBoardColumns( $boardId );
         $board['columns'] = $columns;
+        
+        // 获取里程碑数据
+        $milestones = $this->getBoardMilestones( $boardId );
+        $board['milestones'] = $milestones;
+        
+        wfDebugLog('kanbanboard', '返回看板数据: ' . json_encode($board));
         
         $this->getResult()->addValue( null, 'board', $board );
     }
@@ -479,6 +524,8 @@ class ApiKanban extends ApiBase {
      * 获取看板的所有列
      */
     private function getBoardColumns( $boardId ) {
+        wfDebugLog('kanbanboard', '获取看板列数据: board_id=' . $boardId);
+        
         $statuses = $this->getDB()->select(
             'kanban_statuses',
             '*',
@@ -495,7 +542,10 @@ class ApiKanban extends ApiBase {
             $tasks = $this->getDB()->select(
                 'kanban_tasks',
                 '*',
-                [ 'status_id' => $status->status_id ],
+                [ 
+                    'status_id' => $status->status_id,
+                    'deleted_at IS NULL'
+                ],
                 __METHOD__,
                 [ 'ORDER BY' => 'task_order ASC' ]
             );
@@ -516,6 +566,7 @@ class ApiKanban extends ApiBase {
                     'card_color' => $t['color'],
                     'card_order' => $t['task_order'],
                     'card_due_date' => $t['due_date'],
+                    'card_completed_at' => $t['completed_at'],
                     'card_created_at' => $t['created_at'],
                     'card_updated_at' => $t['updated_at'],
                 ];
@@ -535,6 +586,7 @@ class ApiKanban extends ApiBase {
                 'column_creator_id' => null,
                 'column_color' => $statusArr['color'],
                 'column_created_at' => $statusArr['created_at'],
+                'is_terminal' => $statusArr['is_terminal'],
                 'cards' => $cardsData,
             ];
         }
@@ -834,6 +886,43 @@ class ApiKanban extends ApiBase {
             'offset' => [
                 ParamValidator::PARAM_TYPE => 'integer',
                 ParamValidator::PARAM_REQUIRED => false
+            ],
+            'milestone_id' => [
+                ParamValidator::PARAM_TYPE => 'integer',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'target_date' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'completed_date' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'status' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'board_status' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'filter_status' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'time_range' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false,
+                ParamValidator::PARAM_DEFAULT => 'month'
+            ],
+            'start_date' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
+            ],
+            'end_date' => [
+                ParamValidator::PARAM_TYPE => 'string',
+                ParamValidator::PARAM_REQUIRED => false
             ]
         ];
     }
@@ -843,7 +932,7 @@ class ApiKanban extends ApiBase {
         $action = $params['kanban_action'] ?? '';
         
         // 写操作需要POST请求
-        $writeActions = ['addcolumn', 'deletecolumn', 'updatecolumn', 'createtask', 'updatetask', 'deletetask'];
+        $writeActions = ['addcolumn', 'deletecolumn', 'updatecolumn', 'createtask', 'updatetask', 'deletetask', 'createmilestone', 'updatemilestone', 'deletemilestone', 'hideboard', 'archiveboard', 'deleteboard', 'restoreboard'];
         return in_array($action, $writeActions);
     }
     
@@ -852,7 +941,7 @@ class ApiKanban extends ApiBase {
         $action = $params['kanban_action'] ?? '';
         
         // 写操作需要返回true
-        $writeActions = ['addcolumn', 'deletecolumn', 'updatecolumn', 'createtask', 'updatetask', 'deletetask'];
+        $writeActions = ['addcolumn', 'deletecolumn', 'updatecolumn', 'createtask', 'updatetask', 'deletetask', 'createmilestone', 'updatemilestone', 'deletemilestone', 'hideboard', 'archiveboard', 'deleteboard', 'restoreboard'];
         return in_array($action, $writeActions);
     }
     
@@ -1110,6 +1199,9 @@ class ApiKanban extends ApiBase {
                 [ 'status_id' => $statusId ],
                 __METHOD__
             ) ?: 0;
+            
+            // 处理完成时间逻辑
+            $this->handleTaskCompletionStatus( $task, $newStatus );
         }
         
         // 准备更新数据
@@ -1118,9 +1210,43 @@ class ApiKanban extends ApiBase {
             'description' => $description ?: null,
             'priority' => $priority,
             'color' => $color,
-            'due_date' => $dueDate ?: null,
             'updated_by' => $user->getId()
         ];
+        
+        // 根据任务状态决定更新哪个日期字段
+        if ( $statusId > 0 && $statusId != $task->status_id ) {
+            // 状态发生变化，检查新状态是否为终态
+            $newStatus = $this->getDB()->selectRow(
+                'kanban_statuses',
+                '*',
+                [ 'status_id' => $statusId, 'board_id' => $task->board_id ],
+                __METHOD__
+            );
+            
+            if ( $newStatus && $newStatus->is_terminal ) {
+                // 移动到终态，更新完成时间
+                $updateData['completed_at'] = $dueDate ?: $this->getDB()->timestamp();
+            } else {
+                // 移动到非终态，更新截止日期
+                $updateData['due_date'] = $dueDate ?: null;
+            }
+        } else {
+            // 状态未变化，根据当前状态决定更新哪个字段
+            $currentStatus = $this->getDB()->selectRow(
+                'kanban_statuses',
+                '*',
+                [ 'status_id' => $task->status_id ],
+                __METHOD__
+            );
+            
+            if ( $currentStatus && $currentStatus->is_terminal ) {
+                // 当前是终态，更新完成时间
+                $updateData['completed_at'] = $dueDate ?: null;
+            } else {
+                // 当前是非终态，更新截止日期
+                $updateData['due_date'] = $dueDate ?: null;
+            }
+        }
         
         // 如果状态发生变化，更新状态和顺序
         if ( $statusId > 0 && $statusId != $task->status_id ) {
@@ -1342,5 +1468,836 @@ class ApiKanban extends ApiBase {
         
         $this->getResult()->addValue( null, 'history', $historyData );
         $this->getResult()->addValue( null, 'result', 'success' );
+    }
+    
+    /**
+     * 获取看板的里程碑数据
+     */
+    private function getBoardMilestones( $boardId ) {
+        $milestones = $this->getDB()->select(
+            'kanban_milestones',
+            '*',
+            [ 
+                'board_id' => $boardId,
+                'deleted_at IS NULL'
+            ],
+            __METHOD__,
+            [ 'ORDER BY' => 'milestone_order ASC, target_date ASC' ]
+        );
+        
+        $milestonesData = [];
+        foreach ( $milestones as $milestone ) {
+            $milestonesData[] = [
+                'milestone_id' => $milestone->milestone_id,
+                'board_id' => $milestone->board_id,
+                'title' => $milestone->title,
+                'description' => $milestone->description,
+                'target_date' => $milestone->target_date,
+                'completed_date' => $milestone->completed_date,
+                'status' => $milestone->status,
+                'color' => $milestone->color,
+                'milestone_order' => $milestone->milestone_order,
+                'created_by' => $milestone->created_by,
+                'created_at' => $milestone->created_at,
+                'updated_at' => $milestone->updated_at
+            ];
+        }
+        
+        return $milestonesData;
+    }
+    
+    /**
+     * 创建里程碑
+     */
+    private function createMilestone( $params ) {
+        $boardId = (int)$params['board_id'];
+        $title = trim( $params['title'] ?? '' );
+        $description = trim( $params['description'] ?? '' );
+        $targetDate = $params['target_date'] ?? null;
+        $color = $params['color'] ?? '#9b59b6';
+        
+        // 检查权限
+        $user = $this->getUser();
+        if ( !$this->checkBoardPermission( $user->getId(), $boardId, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 验证输入
+        if ( empty( $title ) ) {
+            $this->dieWithError( 'Milestone title cannot be empty', 'emptytitle' );
+        }
+        
+        if ( strlen( $title ) > 255 ) {
+            $this->dieWithError( 'Milestone title is too long', 'titletoolong' );
+        }
+        
+        // 获取下一个里程碑顺序
+        $nextOrder = $this->getDB()->selectField(
+            'kanban_milestones',
+            'MAX(milestone_order) + 1',
+            [ 'board_id' => $boardId ],
+            __METHOD__
+        ) ?: 1;
+        
+        // 插入新里程碑
+        $milestoneId = $this->getDB()->insert(
+            'kanban_milestones',
+            [
+                'board_id' => $boardId,
+                'title' => $title,
+                'description' => $description ?: null,
+                'target_date' => $targetDate ?: null,
+                'color' => $color,
+                'milestone_order' => $nextOrder,
+                'created_by' => $user->getId(),
+                'updated_by' => $user->getId()
+            ],
+            __METHOD__
+        );
+        
+        if ( !$milestoneId ) {
+            $this->dieWithError( 'Failed to create milestone', 'createfailed' );
+        }
+        
+        // 记录里程碑创建历史
+        $this->recordMilestoneHistory( $milestoneId, null, [
+            'title' => $title,
+            'description' => $description,
+            'target_date' => $targetDate,
+            'color' => $color
+        ], $user->getId(), 'create', 'Milestone created' );
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'milestone_id', $milestoneId );
+        $this->getResult()->addValue( null, 'message', 'Milestone created successfully' );
+    }
+    
+    /**
+     * 更新里程碑
+     */
+    private function updateMilestone( $params ) {
+        $milestoneId = (int)$params['milestone_id'];
+        $title = trim( $params['title'] ?? '' );
+        $description = trim( $params['description'] ?? '' );
+        $targetDate = $params['target_date'] ?? null;
+        $completedDate = $params['completed_date'] ?? null;
+        $status = $params['status'] ?? 'planned';
+        $color = $params['color'] ?? '#9b59b6';
+        
+        // 检查权限
+        $user = $this->getUser();
+        
+        // 获取里程碑信息
+        $milestone = $this->getDB()->selectRow(
+            'kanban_milestones',
+            '*',
+            [ 'milestone_id' => $milestoneId ],
+            __METHOD__
+        );
+        
+        if ( !$milestone ) {
+            $this->dieWithError( 'Milestone not found', 'milestonenotfound' );
+        }
+        
+        if ( !$this->checkBoardPermission( $user->getId(), $milestone->board_id, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 验证输入
+        if ( empty( $title ) ) {
+            $this->dieWithError( 'Milestone title cannot be empty', 'emptytitle' );
+        }
+        
+        if ( strlen( $title ) > 255 ) {
+            $this->dieWithError( 'Milestone title is too long', 'titletoolong' );
+        }
+        
+        if ( !in_array( $status, [ 'planned', 'in_progress', 'completed', 'cancelled' ] ) ) {
+            $this->dieWithError( 'Invalid status', 'invalidstatus' );
+        }
+        
+        // 准备更新数据
+        $updateData = [
+            'title' => $title,
+            'description' => $description ?: null,
+            'target_date' => $targetDate ?: null,
+            'completed_date' => $completedDate ?: null,
+            'status' => $status,
+            'color' => $color,
+            'updated_by' => $user->getId()
+        ];
+        
+        // 记录里程碑更新历史
+        $this->recordMilestoneHistory( $milestoneId, (array)$milestone, $updateData, $user->getId(), 'update', 'Milestone updated' );
+        
+        // 更新里程碑
+        $result = $this->getDB()->update(
+            'kanban_milestones',
+            $updateData,
+            [ 'milestone_id' => $milestoneId ],
+            __METHOD__
+        );
+        
+        if ( !$result ) {
+            $this->dieWithError( 'Failed to update milestone', 'updatefailed' );
+        }
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'message', 'Milestone updated successfully' );
+    }
+    
+    /**
+     * 删除里程碑
+     */
+    private function deleteMilestone( $params ) {
+        $milestoneId = (int)$params['milestone_id'];
+        
+        // 检查权限
+        $user = $this->getUser();
+        
+        // 获取里程碑信息
+        $milestone = $this->getDB()->selectRow(
+            'kanban_milestones',
+            '*',
+            [ 'milestone_id' => $milestoneId ],
+            __METHOD__
+        );
+        
+        if ( !$milestone ) {
+            $this->dieWithError( 'Milestone not found', 'milestonenotfound' );
+        }
+        
+        if ( !$this->checkBoardPermission( $user->getId(), $milestone->board_id, 'edit' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 记录里程碑删除历史
+        $this->recordMilestoneHistory( $milestoneId, (array)$milestone, null, $user->getId(), 'delete', 'Milestone deleted' );
+        
+        // 软删除里程碑
+        $result = $this->getDB()->update(
+            'kanban_milestones',
+            [
+                'deleted_at' => $this->getDB()->timestamp(),
+                'updated_by' => $user->getId()
+            ],
+            [ 'milestone_id' => $milestoneId ],
+            __METHOD__
+        );
+        
+        if ( !$result ) {
+            $this->dieWithError( 'Failed to delete milestone', 'deletefailed' );
+        }
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'message', 'Milestone deleted successfully' );
+    }
+    
+    /**
+     * 获取里程碑列表
+     */
+    private function getMilestones( $params ) {
+        $boardId = (int)$params['board_id'];
+        
+        // 检查权限
+        $user = $this->getUser();
+        if ( !$this->checkBoardPermission( $user->getId(), $boardId, 'view' ) ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        $milestones = $this->getBoardMilestones( $boardId );
+        
+        $this->getResult()->addValue( null, 'milestones', $milestones );
+        $this->getResult()->addValue( null, 'result', 'success' );
+    }
+    
+    /**
+     * 记录里程碑历史
+     */
+    private function recordMilestoneHistory( $milestoneId, $oldData, $newData, $userId, $changeType, $reason = null ) {
+        $db = $this->getDB();
+        $request = $this->getMain()->getRequest();
+        
+        // 获取客户端信息
+        $ipAddress = $request->getIP();
+        $userAgent = $request->getHeader( 'User-Agent' );
+        
+        // 如果是创建操作，记录所有字段
+        if ( $changeType === 'create' ) {
+            foreach ( $newData as $field => $value ) {
+                if ( $field === 'updated_by' ) continue; // 跳过系统字段
+                
+                $db->insert(
+                    'kanban_milestone_history',
+                    [
+                        'milestone_id' => $milestoneId,
+                        'field_name' => $field,
+                        'old_value' => null,
+                        'new_value' => $value,
+                        'changed_by' => $userId,
+                        'change_type' => $changeType,
+                        'change_reason' => $reason,
+                        'ip_address' => $ipAddress,
+                        'user_agent' => $userAgent
+                    ],
+                    __METHOD__
+                );
+            }
+        }
+        // 如果是更新操作，只记录有变化的字段
+        elseif ( $changeType === 'update' && $oldData && $newData ) {
+            foreach ( $newData as $field => $newValue ) {
+                if ( $field === 'updated_by' ) continue; // 跳过系统字段
+                
+                $oldValue = $oldData[$field] ?? null;
+                
+                // 只记录有变化的字段
+                if ( $oldValue != $newValue ) {
+                    $db->insert(
+                        'kanban_milestone_history',
+                        [
+                            'milestone_id' => $milestoneId,
+                            'field_name' => $field,
+                            'old_value' => $oldValue,
+                            'new_value' => $newValue,
+                            'changed_by' => $userId,
+                            'change_type' => $changeType,
+                            'change_reason' => $reason,
+                            'ip_address' => $ipAddress,
+                            'user_agent' => $userAgent
+                        ],
+                        __METHOD__
+                    );
+                }
+            }
+        }
+        // 如果是删除操作
+        elseif ( $changeType === 'delete' && $oldData ) {
+            $db->insert(
+                'kanban_milestone_history',
+                [
+                    'milestone_id' => $milestoneId,
+                    'field_name' => 'deleted',
+                    'old_value' => 'active',
+                    'new_value' => 'deleted',
+                    'changed_by' => $userId,
+                    'change_type' => $changeType,
+                    'change_reason' => $reason,
+                    'ip_address' => $ipAddress,
+                    'user_agent' => $userAgent
+                ],
+                __METHOD__
+            );
+        }
+    }
+    
+    /**
+     * 隐藏看板
+     */
+    private function hideBoard( $params ) {
+        $boardId = (int)$params['board_id'];
+        $this->changeBoardStatus( $boardId, 'hidden' );
+    }
+    
+    /**
+     * 存档看板
+     */
+    private function archiveBoard( $params ) {
+        $boardId = (int)$params['board_id'];
+        $this->changeBoardStatus( $boardId, 'archived' );
+    }
+    
+    /**
+     * 删除看板
+     */
+    private function deleteBoard( $params ) {
+        $boardId = (int)$params['board_id'];
+        $this->changeBoardStatus( $boardId, 'deleted' );
+    }
+    
+    /**
+     * 恢复看板
+     */
+    private function restoreBoard( $params ) {
+        $boardId = (int)$params['board_id'];
+        $this->changeBoardStatus( $boardId, 'active' );
+    }
+    
+    /**
+     * 获取看板列表
+     */
+    private function getBoards( $params ) {
+        $user = $this->getUser();
+        $filterStatus = $params['filter_status'] ?? 'active';
+        
+        // 构建查询条件
+        $conditions = [];
+        
+        // 根据状态过滤
+        if ( $filterStatus !== 'all' ) {
+            $conditions['board_status'] = $filterStatus;
+        }
+        
+        // 权限过滤：只显示用户有权限的看板
+        $boards = $this->getDB()->select(
+            'kanban_boards',
+            '*',
+            $conditions,
+            __METHOD__,
+            [ 'ORDER BY' => 'board_created_at DESC' ]
+        );
+        
+        $boardsData = [];
+        foreach ( $boards as $board ) {
+            // 检查用户权限
+            if ( $this->checkBoardPermission( $user->getId(), $board->board_id, 'view' ) ) {
+                $boardsData[] = [
+                    'board_id' => $board->board_id,
+                    'board_name' => $board->board_name,
+                    'board_description' => $board->board_description,
+                    'board_owner_id' => $board->board_owner_id,
+                    'board_permissions' => $board->board_permissions,
+                    'board_status' => $board->board_status,
+                    'status_changed_at' => $board->status_changed_at,
+                    'status_changed_by' => $board->status_changed_by,
+                    'board_created_at' => $board->board_created_at,
+                    'board_updated_at' => $board->board_updated_at
+                ];
+            }
+        }
+        
+        $this->getResult()->addValue( null, 'boards', $boardsData );
+        $this->getResult()->addValue( null, 'result', 'success' );
+    }
+    
+    /**
+     * 更改看板状态
+     */
+    private function changeBoardStatus( $boardId, $newStatus ) {
+        $user = $this->getUser();
+        
+        // 检查看板是否存在
+        $board = $this->getBoardData( $boardId );
+        if ( !$board ) {
+            $this->dieWithError( 'Board not found', 'boardnotfound' );
+        }
+        
+        // 检查权限（只有所有者可以更改状态）
+        if ( $board['board_owner_id'] != $user->getId() ) {
+            $this->dieWithError( 'Permission denied', 'permissiondenied' );
+        }
+        
+        // 更新看板状态
+        $result = $this->getDB()->update(
+            'kanban_boards',
+            [
+                'board_status' => $newStatus,
+                'status_changed_at' => $this->getDB()->timestamp(),
+                'status_changed_by' => $user->getId()
+            ],
+            [ 'board_id' => $boardId ],
+            __METHOD__
+        );
+        
+        if ( !$result ) {
+            $this->dieWithError( 'Failed to change board status', 'statuschangefailed' );
+        }
+        
+        $this->getResult()->addValue( null, 'result', 'success' );
+        $this->getResult()->addValue( null, 'message', 'Board status changed successfully' );
+    }
+    
+    /**
+     * 处理任务完成状态变更
+     */
+    private function handleTaskCompletionStatus( $task, $newStatus ) {
+        $db = $this->getDB();
+        
+        // 获取旧状态信息
+        $oldStatus = $db->selectRow(
+            'kanban_statuses',
+            '*',
+            [ 'status_id' => $task->status_id ],
+            __METHOD__
+        );
+        
+        // 如果移动到终态列且之前没有完成时间，设置完成时间
+        if ( $newStatus->is_terminal && !$task->completed_at ) {
+            $db->update(
+                'kanban_tasks',
+                [ 'completed_at' => $db->timestamp() ],
+                [ 'task_id' => $task->task_id ],
+                __METHOD__
+            );
+        }
+        // 如果从终态列移出，清空完成时间
+        elseif ( $oldStatus && $oldStatus->is_terminal && !$newStatus->is_terminal ) {
+            $db->update(
+                'kanban_tasks',
+                [ 'completed_at' => null ],
+                [ 'task_id' => $task->task_id ],
+                __METHOD__
+            );
+        }
+    }
+    
+    /**
+     * 获取看板统计数据
+     */
+    private function getStats( $params ) {
+        $boardId = $params['board_id'] ?? null;
+        $timeRange = $params['time_range'] ?? 'month';
+        
+        wfDebugLog('kanbanboard', '获取统计数据: board_id=' . $boardId . ', time_range=' . $timeRange);
+        
+        $db = $this->getDB();
+        
+        // 计算时间范围
+        $dateCondition = $this->getDateCondition( $timeRange );
+        
+        // 获取总体统计
+        $overview = $this->getOverviewStats( $db, $boardId, $dateCondition );
+        
+        // 获取按时间范围的任务统计
+        $startDate = $params['start_date'] ?? null;
+        $endDate = $params['end_date'] ?? null;
+        $timeRangeTasks = $this->getTimeRangeTasks( $db, $boardId, $timeRange, $startDate, $endDate );
+        
+        // 获取任务趋势数据
+        $trendData = $this->getTaskTrendData( $db, $boardId, $timeRange, $startDate, $endDate );
+        
+        // 获取最近完成的任务
+        $recentTasks = $this->getRecentTasks( $db, $boardId, $dateCondition );
+        
+        $result = [
+            'overview' => $overview,
+            'time_range_tasks' => $timeRangeTasks,
+            'trend_data' => $trendData,
+            'recent_tasks' => $recentTasks
+        ];
+        
+        wfDebugLog('kanbanboard', '统计数据: ' . json_encode($result));
+        
+        $this->getResult()->addValue( null, 'stats', $result );
+    }
+    
+    /**
+     * 根据时间范围获取日期条件
+     */
+    private function getDateCondition( $timeRange ) {
+        $now = time();
+        
+        switch ( $timeRange ) {
+            case 'week':
+                $startTime = $now - (7 * 24 * 60 * 60);
+                break;
+            case 'month':
+                $startTime = $now - (30 * 24 * 60 * 60);
+                break;
+            case 'quarter':
+                $startTime = $now - (90 * 24 * 60 * 60);
+                break;
+            case 'year':
+                $startTime = $now - (365 * 24 * 60 * 60);
+                break;
+            case 'all':
+            default:
+                $startTime = 0;
+                break;
+        }
+        
+        return $startTime;
+    }
+    
+    /**
+     * 获取总体统计数据
+     */
+    private function getOverviewStats( $db, $boardId, $dateCondition ) {
+        // 构建查询条件
+        $whereCondition = [];
+        if ( $boardId ) {
+            $whereCondition['board_id'] = $boardId;
+        }
+        
+        // 总任务数
+        $totalTasks = $db->selectField(
+            'kanban_tasks',
+            'COUNT(*)',
+            $whereCondition,
+            __METHOD__
+        );
+        
+        // 已完成任务数
+        $completedCondition = array_merge( $whereCondition, [ 'completed_at IS NOT NULL' ] );
+        $completedTasks = $db->selectField(
+            'kanban_tasks',
+            'COUNT(*)',
+            $completedCondition,
+            __METHOD__
+        );
+        
+        // 完成率
+        $completionRate = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 1) : 0;
+        
+        // 平均完成时间（天）
+        $avgCompletionTime = $this->getAverageCompletionTime( $db, $boardId, $dateCondition );
+        
+        return [
+            'total_tasks' => (int)$totalTasks,
+            'completed_tasks' => (int)$completedTasks,
+            'completion_rate' => $completionRate,
+            'avg_completion_time' => $avgCompletionTime
+        ];
+    }
+    
+    /**
+     * 获取平均完成时间
+     */
+    private function getAverageCompletionTime( $db, $boardId, $dateCondition ) {
+        // 构建查询条件
+        $whereCondition = [
+            'completed_at IS NOT NULL',
+            'created_at IS NOT NULL'
+        ];
+        if ( $boardId ) {
+            $whereCondition['board_id'] = $boardId;
+        }
+        
+        $result = $db->select(
+            'kanban_tasks',
+            [ 'created_at', 'completed_at' ],
+            $whereCondition,
+            __METHOD__
+        );
+        
+        $totalDays = 0;
+        $count = 0;
+        
+        foreach ( $result as $row ) {
+            $createdAt = strtotime( $row->created_at );
+            $completedAt = strtotime( $row->completed_at );
+            
+            if ( $createdAt && $completedAt ) {
+                $days = ($completedAt - $createdAt) / (24 * 60 * 60);
+                $totalDays += $days;
+                $count++;
+            }
+        }
+        
+        return $count > 0 ? round($totalDays / $count, 1) : 0;
+    }
+    
+    /**
+     * 获取按时间范围完成的任务
+     */
+    private function getTimeRangeTasks( $db, $boardId, $timeRange, $startDate = null, $endDate = null ) {
+        // 计算时间范围
+        $now = time();
+        $timeRangeMap = [
+            'week' => 7 * 24 * 60 * 60,
+            'month' => 30 * 24 * 60 * 60,
+            'quarter' => 90 * 24 * 60 * 60,
+            'year' => 365 * 24 * 60 * 60,
+            'all' => 0
+        ];
+        
+        if ( $timeRange === 'custom' && $startDate && $endDate ) {
+            // 自定义时间范围
+            $startTime = strtotime($startDate . ' 00:00:00');
+            $endTime = strtotime($endDate . ' 23:59:59');
+        } else {
+            // 预设时间范围
+            $timeRangeSeconds = $timeRangeMap[$timeRange] ?? $timeRangeMap['month'];
+            $startTime = $timeRangeSeconds > 0 ? $now - $timeRangeSeconds : 0;
+            $endTime = strtotime(date('Y-m-d') . ' 23:59:59'); // 包含今天的结束时间
+        }
+        
+        // 构建查询条件
+        $whereCondition = [
+            'completed_at IS NOT NULL',
+            'completed_at >= ' . $db->addQuotes( date('Y-m-d H:i:s', $startTime ) ),
+            'completed_at <= ' . $db->addQuotes( date('Y-m-d H:i:s', $endTime ) )
+        ];
+        if ( $boardId ) {
+            $whereCondition['board_id'] = $boardId;
+        }
+        
+        // 获取任务详情
+        $completedTasks = $db->select(
+            [ 'kanban_tasks', 'kanban_boards' ],
+            [ 
+                'kanban_tasks.task_id', 
+                'kanban_tasks.title', 
+                'kanban_tasks.completed_at', 
+                'kanban_tasks.priority', 
+                'kanban_tasks.color',
+                'kanban_boards.board_name'
+            ],
+            array_merge($whereCondition, [
+                'kanban_tasks.board_id = kanban_boards.board_id'
+            ]),
+            __METHOD__,
+            [ 'ORDER BY' => 'kanban_tasks.completed_at DESC' ]
+        );
+        
+        $tasks = [];
+        foreach ( $completedTasks as $task ) {
+            $tasks[] = [
+                'task_id' => $task->task_id,
+                'title' => $task->title,
+                'completed_at' => $task->completed_at,
+                'priority' => $task->priority,
+                'color' => $task->color,
+                'board_name' => $task->board_name
+            ];
+        }
+        
+        return [
+            'time_range' => $timeRange,
+            'start_date' => date('Y-m-d', $startTime),
+            'end_date' => date('Y-m-d', $endTime),
+            'completed_count' => count($tasks),
+            'tasks' => $tasks
+        ];
+    }
+    
+    /**
+     * 获取任务趋势数据（创建vs完成）
+     */
+    private function getTaskTrendData( $db, $boardId, $timeRange, $startDate = null, $endDate = null ) {
+        // 计算时间范围
+        $now = time();
+        $timeRangeMap = [
+            'week' => 7 * 24 * 60 * 60,
+            'month' => 30 * 24 * 60 * 60,
+            'quarter' => 90 * 24 * 60 * 60,
+            'year' => 365 * 24 * 60 * 60,
+            'all' => 0
+        ];
+        
+        if ( $timeRange === 'custom' && $startDate && $endDate ) {
+            // 自定义时间范围
+            $startTime = strtotime($startDate . ' 00:00:00');
+            $endTime = strtotime($endDate . ' 23:59:59');
+        } else {
+            // 预设时间范围
+            $timeRangeSeconds = $timeRangeMap[$timeRange] ?? $timeRangeMap['month'];
+            $startTime = $timeRangeSeconds > 0 ? $now - $timeRangeSeconds : 0;
+            $endTime = strtotime(date('Y-m-d') . ' 23:59:59'); // 包含今天的结束时间
+        }
+        
+        // 生成日期范围（按天分组）
+        $days = [];
+        $currentTime = $startTime;
+        while ( $currentTime <= $endTime ) {
+            $days[] = [
+                'date' => date('Y-m-d', $currentTime),
+                'label' => date('m/d', $currentTime),
+                'created_count' => 0,
+                'completed_count' => 0
+            ];
+            $currentTime += 24 * 60 * 60; // 增加一天
+        }
+        
+        // 查询创建的任务
+        $createdWhere = [
+            'created_at >= ' . $db->addQuotes( date('Y-m-d H:i:s', $startTime ) ),
+            'created_at <= ' . $db->addQuotes( date('Y-m-d H:i:s', $endTime ) )
+        ];
+        if ( $boardId ) {
+            $createdWhere['board_id'] = $boardId;
+        }
+        
+        $createdTasks = $db->select(
+            'kanban_tasks',
+            [ 'DATE(created_at) as date', 'COUNT(*) as count' ],
+            $createdWhere,
+            __METHOD__,
+            [ 'GROUP BY' => 'DATE(created_at)' ]
+        );
+        
+        foreach ( $createdTasks as $task ) {
+            foreach ( $days as &$day ) {
+                if ( $day['date'] === $task->date ) {
+                    $day['created_count'] = (int)$task->count;
+                    break;
+                }
+            }
+        }
+        
+        // 查询完成的任务
+        $completedWhere = [
+            'completed_at IS NOT NULL',
+            'completed_at >= ' . $db->addQuotes( date('Y-m-d H:i:s', $startTime ) ),
+            'completed_at <= ' . $db->addQuotes( date('Y-m-d H:i:s', $endTime ) )
+        ];
+        if ( $boardId ) {
+            $completedWhere['board_id'] = $boardId;
+        }
+        
+        $completedTasks = $db->select(
+            'kanban_tasks',
+            [ 'DATE(completed_at) as date', 'COUNT(*) as count' ],
+            $completedWhere,
+            __METHOD__,
+            [ 'GROUP BY' => 'DATE(completed_at)' ]
+        );
+        
+        foreach ( $completedTasks as $task ) {
+            foreach ( $days as &$day ) {
+                if ( $day['date'] === $task->date ) {
+                    $day['completed_count'] = (int)$task->count;
+                    break;
+                }
+            }
+        }
+        
+        return [
+            'time_range' => $timeRange,
+            'start_date' => date('Y-m-d', $startTime),
+            'end_date' => date('Y-m-d', $endTime),
+            'days' => $days
+        ];
+    }
+    
+    /**
+     * 获取最近完成的任务
+     */
+    private function getRecentTasks( $db, $boardId, $dateCondition ) {
+        // 构建查询条件
+        $whereCondition = [ 'completed_at IS NOT NULL' ];
+        if ( $boardId ) {
+            $whereCondition['board_id'] = $boardId;
+        }
+        
+        $result = $db->select(
+            [ 'kanban_tasks', 'kanban_boards' ],
+            [ 
+                'kanban_tasks.task_id', 
+                'kanban_tasks.title', 
+                'kanban_tasks.completed_at',
+                'kanban_boards.board_name'
+            ],
+            array_merge($whereCondition, [
+                'kanban_tasks.board_id = kanban_boards.board_id'
+            ]),
+            __METHOD__,
+            [
+                'ORDER BY' => 'kanban_tasks.completed_at DESC',
+                'LIMIT' => 20
+            ]
+        );
+        
+        $tasks = [];
+        foreach ( $result as $row ) {
+            $tasks[] = [
+                'card_id' => $row->task_id,
+                'card_title' => $row->title,
+                'card_completed_at' => $row->completed_at,
+                'board_name' => $row->board_name
+            ];
+        }
+        
+        return $tasks;
     }
 }

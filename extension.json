@@ -24,6 +24,7 @@
 		"ext.kanbanboard": {
 			"localBasePath": "resources",
 			"remoteExtPath": "KanbanBoard/resources",
+			"version": "2.0",
 			"scripts": [
 				"js/kanban.js"
 			],
@@ -125,6 +126,13 @@
 			"nonincludable": false,
 			"protection": "edit=autoconfirmed,move=autoconfirmed",
 			"aliases": ["看板讨论"]
+		}
+	],
+	"DatabaseUpdates": [
+		{
+			"type": "table",
+			"name": "kanban_boards",
+			"create": "sql/kanban_tables.sql"
 		}
 	],
 	"manifest_version": 2

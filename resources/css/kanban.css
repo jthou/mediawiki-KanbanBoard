@@ -930,10 +930,52 @@
     opacity: 0.5;
 }
 
+/* 任务号显示 */
+.kanban-card-task-number {
+    color: #6c757d;
+    font-size: 11px;
+    font-weight: 500;
+    margin-bottom: 5px;
+    font-family: monospace;
+}
+
 .kanban-card-description {
     color: #6c757d;
     font-size: 12px;
     line-height: 1.4;
+}
+
+/* 任务完成时间显示 */
+.kanban-card-completed-at {
+    color: #28a745;
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 8px;
+    padding: 4px 6px;
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 4px;
+    border-left: 3px solid #28a745;
+}
+
+/* 任务编辑对话框中的完成时间显示 */
+.completed-time-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    border-radius: 6px;
+    color: #28a745;
+    font-weight: 500;
+}
+
+.completed-icon {
+    font-size: 16px;
+}
+
+.completed-text {
+    font-size: 14px;
 }
 
 /* 卡片拖拽手柄 */
@@ -1340,7 +1382,9 @@
     flex-wrap: wrap;
 }
 
-.color-preset {
+/* 通用颜色预设样式 - 仅在非里程碑表单中使用 */
+.kanban-task-form .color-preset,
+.kanban-column-form .color-preset {
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -1350,7 +1394,8 @@
     position: relative;
 }
 
-.color-preset:hover {
+.kanban-task-form .color-preset:hover,
+.kanban-column-form .color-preset:hover {
     border-color: #2c3e50;
     transform: scale(1.1);
 }
@@ -1823,3 +1868,1105 @@
 .kanban-copy-btn.copied::after {
     content: " ✓";
 }
+
+/* 里程碑样式 */
+.kanban-milestones-container {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.kanban-milestones-title {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.kanban-milestones-timeline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0;
+    min-height: 88px; /* 确保有足够高度容纳卡片 */
+}
+
+/* 自定义滚动条样式 */
+.kanban-milestones-timeline::-webkit-scrollbar {
+    height: 6px;
+}
+
+.kanban-milestones-timeline::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.kanban-milestones-timeline::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.kanban-milestones-timeline::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.kanban-milestone-card {
+    width: 150px;
+    height: 53px;
+    border-radius: 8px;
+    padding: 6px;
+    margin: 4px;
+    position: relative;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.kanban-milestone-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.milestone-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.milestone-date {
+    font-size: 8px;
+    color: #fff;
+    opacity: 0.8;
+    line-height: 1.2;
+}
+
+.milestone-status {
+    font-size: 8px;
+    color: #fff;
+    opacity: 0.9;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(0,0,0,0.2);
+    padding: 1px 3px;
+    border-radius: 2px;
+}
+
+.kanban-timeline-arrow {
+    font-size: 20px;
+    color: #666;
+    margin: 0 8px;
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.kanban-add-milestone-btn {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    width: 150px;
+    height: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin: 4px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.kanban-add-milestone-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+.kanban-add-milestone-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.kanban-add-milestone-btn:active {
+    background: #dee2e6;
+    border-color: #6c757d;
+}
+
+/* 里程碑对话框样式 */
+.kanban-milestone-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: none;
+}
+
+.kanban-milestone-dialog .dialog-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+}
+
+.kanban-milestone-dialog .dialog-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 700px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-milestone-dialog .dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.kanban-milestone-dialog .dialog-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.kanban-milestone-dialog .dialog-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kanban-milestone-dialog .dialog-close:hover {
+    color: #495057;
+}
+
+.kanban-milestone-form {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.kanban-milestone-form .form-group {
+    margin-bottom: 15px;
+}
+
+.kanban-milestone-form .form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.kanban-milestone-form .form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.kanban-milestone-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.kanban-milestone-form input,
+.kanban-milestone-form textarea,
+.kanban-milestone-form select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.kanban-milestone-form input:focus,
+.kanban-milestone-form textarea:focus,
+.kanban-milestone-form select:focus,
+.kanban-milestone-form .color-picker input[type="color"]:focus {
+    outline: none;
+    border-color: #9b59b6;
+    box-shadow: 0 0 0 2px rgba(155, 89, 182, 0.2);
+}
+
+#milestoneDescription {
+    height: 310px !important;
+    resize: vertical;
+}
+
+.kanban-milestone-form .color-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.kanban-milestone-form .color-picker input[type="color"] {
+    width: 50px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.kanban-milestone-form .color-presets {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+}
+
+.kanban-milestone-form .color-preset {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+.kanban-milestone-form .color-preset:hover {
+    border-color: #495057;
+}
+
+/* 为每个颜色预设设置对应的背景色 */
+.kanban-milestone-form .color-preset[data-color="#9b59b6"] {
+    background-color: #9b59b6 !important;
+}
+
+.kanban-milestone-form .color-preset[data-color="#e74c3c"] {
+    background-color: #e74c3c !important;
+}
+
+.kanban-milestone-form .color-preset[data-color="#f39c12"] {
+    background-color: #f39c12 !important;
+}
+
+.kanban-milestone-form .color-preset[data-color="#27ae60"] {
+    background-color: #27ae60 !important;
+}
+
+.kanban-milestone-form .color-preset[data-color="#3498db"] {
+    background-color: #3498db !important;
+}
+
+.kanban-milestone-form .color-preset[data-color="#e67e22"] {
+    background-color: #e67e22 !important;
+}
+
+.kanban-milestone-form .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+.kanban-milestone-form .btn-cancel,
+.kanban-milestone-form .btn-delete,
+.kanban-milestone-form .btn-primary {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.kanban-milestone-form .btn-cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.kanban-milestone-form .btn-cancel:hover {
+    background: #5a6268;
+}
+
+.kanban-milestone-form .btn-delete {
+    background: #dc3545;
+    color: white;
+}
+
+.kanban-milestone-form .btn-delete:hover {
+    background: #c82333;
+}
+
+.kanban-milestone-form .btn-primary {
+    background: #9b59b6;
+    color: white;
+}
+
+.kanban-milestone-form .btn-primary:hover {
+    background: #8e44ad;
+}
+
+.kanban-milestone-form .btn-primary:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .kanban-milestones-timeline {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    
+    .kanban-timeline-arrow {
+        display: none; /* 在小屏幕上隐藏箭头 */
+    }
+}
+
+@media (max-width: 768px) {
+    .kanban-milestones-timeline {
+        flex-direction: column;
+        align-items: stretch;
+        overflow-x: visible;
+    }
+    
+    .kanban-timeline-arrow {
+        transform: rotate(90deg);
+        margin: 8px 0;
+        display: block;
+    }
+    
+    .kanban-milestone-card,
+    .kanban-add-milestone-btn {
+        width: 100%;
+        max-width: 200px;
+        margin: 4px auto;
+        height: 40px;
+    }
+    
+    .kanban-milestone-dialog .dialog-content {
+        width: 95%;
+        margin: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .kanban-milestone-card,
+    .kanban-add-milestone-btn {
+        width: 100%;
+        max-width: 150px;
+        height: 45px;
+    }
+    
+    .milestone-title {
+        font-size: 12px;
+    }
+    
+    .milestone-date,
+    .milestone-status {
+        font-size: 7px;
+    }
+}
+
+/* 看板状态样式 */
+.kanban-status-active {
+    background: #28a745;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.kanban-status-hidden {
+    background: #6c757d;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.kanban-status-archived {
+    background: #ffc107;
+    color: #212529;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+/* 存档看板整体置灰并禁用交互 */
+.kanban-board-archived {
+    filter: grayscale(100%);
+    opacity: 0.6;
+}
+.kanban-board-archived .kanban-board,
+.kanban-board-archived .kanban-column,
+.kanban-board-archived .kanban-card,
+.kanban-board-archived button,
+.kanban-board-archived a {
+    pointer-events: none;
+}
+
+.kanban-status-deleted {
+    background: #dc3545;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.kanban-status-unknown {
+    background: #6c757d;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+/* 统计页面样式 */
+.kanban-stats-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.stats-time-selector {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stats-time-selector h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.time-range-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.time-range-btn {
+    padding: 8px 16px;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.time-range-btn:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+}
+
+.time-range-btn.active {
+    border-color: #007bff;
+    background: #007bff;
+    color: white;
+}
+
+.time-range-btn.active:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+/* 自定义时间范围样式 */
+.custom-time-range {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    margin-top: 15px;
+}
+
+.custom-time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.time-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.time-input-group label {
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+}
+
+.time-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+    transition: border-color 0.3s ease;
+}
+
+.time-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+#apply-custom-range {
+    padding: 8px 16px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+    align-self: flex-end;
+}
+
+#apply-custom-range:hover {
+    background: #0056b3;
+}
+
+.stats-chart {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.stats-chart h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.chart-container {
+    height: 300px;
+    position: relative;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.chart-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #666;
+    font-style: italic;
+}
+
+/* 图表样式 */
+.task-trend-chart {
+    width: 100%;
+    height: 100%;
+}
+
+.chart-line {
+    stroke-width: 2;
+    fill: none;
+}
+
+.chart-line.created {
+    stroke: #007bff;
+}
+
+.chart-line.completed {
+    stroke: #28a745;
+}
+
+.chart-axis {
+    stroke: #ddd;
+    stroke-width: 1;
+}
+
+.chart-label {
+    font-size: 12px;
+    fill: #666;
+}
+
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.legend-color.created {
+    background: #007bff;
+}
+
+.legend-color.completed {
+    background: #28a745;
+}
+
+.stats-cards {
+    display: grid;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.stats-overview {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stats-overview h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 2px solid #007bff;
+}
+
+.stat-number {
+    font-size: 12px;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-chart {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stats-chart h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.chart-container {
+    height: 400px;
+    position: relative;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-loading {
+    color: #666;
+    font-size: 16px;
+}
+
+.stats-details {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stats-details h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.task-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #e9ecef;
+    transition: background 0.2s ease;
+}
+
+.task-item:hover {
+    background: #f8f9fa;
+}
+
+.task-item:last-child {
+    border-bottom: none;
+}
+
+.task-info {
+    flex: 1;
+}
+
+.task-title {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.task-meta {
+    font-size: 12px;
+    color: #666;
+}
+
+.task-completion-date {
+    font-size: 12px;
+    color: #28a745;
+    font-weight: 500;
+}
+
+.loading {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 40px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .kanban-stats-container {
+        padding: 10px;
+    }
+    
+    .time-range-buttons {
+        flex-direction: column;
+    }
+    
+    .time-range-btn {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
+    
+    .task-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+
+/* 任务展示区域样式 */
+.tasks-container {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-top: 20px;
+}
+
+.tasks-loading {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 40px;
+}
+
+/* 时间范围任务展示样式 */
+.time-range-tasks-container {
+    margin-top: 20px;
+}
+
+.time-range-header {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.time-range-header h4 {
+    margin: 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.time-range-count {
+    background: #007bff;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sort-label {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+.sort-controls .sort-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.sort-controls .sort-btn {
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #666;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    min-width: 35px;
+    text-align: center;
+}
+
+.sort-controls .sort-btn:hover {
+    border-color: #007bff;
+    color: #007bff;
+    background: #f0f8ff;
+}
+
+.sort-controls .sort-btn.active {
+    background: #007bff;
+    color: #fff;
+    border-color: #007bff;
+}
+
+.time-range-tasks {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    background: #fff;
+    border-radius: 0 0 8px 8px;
+}
+.weekly-tasks-container {
+    margin-top: 20px;
+}
+
+.week-section {
+    margin-bottom: 30px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.week-header {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.week-header h4 {
+    margin: 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.week-count {
+    background: #007bff;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.week-tasks {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.task-card.completed-task {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-left: 4px solid #28a745;
+    border-radius: 6px;
+    padding: 15px;
+    transition: all 0.2s ease;
+}
+
+.task-card.completed-task:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.task-card .task-board {
+    font-size: 12px;
+    color: #007bff;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.task-board {
+    font-size: 12px;
+    color: #007bff;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.task-card .task-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #666;
+}
+
+.task-card .task-id {
+    background: #e9ecef;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.task-card .completed-time {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.no-tasks-message {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 40px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px dashed #ccc;
+}
+
+/* 优先级颜色 */
+.task-card.priority-high {
+    border-left-color: #dc3545 !important;
+}
+
+.task-card.priority-urgent {
+    border-left-color: #dc3545 !important;
+    background: #fff5f5;
+}
+
+.task-card.priority-medium {
+    border-left-color: #ffc107 !important;
+}
+
+.task-card.priority-low {
+    border-left-color: #6c757d !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .week-tasks {
+        grid-template-columns: 1fr;
+    }
+    
+    .week-header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .task-card .task-meta {
+        flex-direction: column;
+        gap: 5px;
+        align-items: flex-start;
+    }
+}
+
+/* 统计页面样式结束 */
