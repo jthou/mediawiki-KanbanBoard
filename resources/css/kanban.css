@@ -2169,18 +2169,6 @@
 }
 
 /* 为每个颜色预设设置对应的背景色 */
-.kanban-milestone-form .color-preset[data-color="#9b59b6"] {
-    background-color: #9b59b6 !important;
-}
-
-.kanban-milestone-form .color-preset[data-color="#e74c3c"] {
-    background-color: #e74c3c !important;
-}
-
-.kanban-milestone-form .color-preset[data-color="#f39c12"] {
-    background-color: #f39c12 !important;
-}
-
 .kanban-milestone-form .color-preset[data-color="#27ae60"] {
     background-color: #27ae60 !important;
 }
@@ -2189,8 +2177,12 @@
     background-color: #3498db !important;
 }
 
-.kanban-milestone-form .color-preset[data-color="#e67e22"] {
-    background-color: #e67e22 !important;
+.kanban-milestone-form .color-preset[data-color="#f39c12"] {
+    background-color: #f39c12 !important;
+}
+
+.kanban-milestone-form .color-preset[data-color="#e74c3c"] {
+    background-color: #e74c3c !important;
 }
 
 .kanban-milestone-form .form-actions {

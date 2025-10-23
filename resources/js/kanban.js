@@ -3465,7 +3465,7 @@
         // 设置卡片样式（任务卡片的一半大小）
         card.style.width = '150px';
         card.style.height = '53px';
-        card.style.backgroundColor = milestoneData.color || '#9b59b6';
+        card.style.backgroundColor = milestoneData.color || '#3498db';
         card.style.borderRadius = '8px';
         card.style.padding = '6px';
         card.style.margin = '4px';
@@ -3475,7 +3475,7 @@
         card.style.transition = 'transform 0.2s ease';
         
         // 根据背景色亮度自动调整文字颜色
-        var textColor = self.getContrastColor(milestoneData.color || '#9b59b6');
+        var textColor = self.getContrastColor(milestoneData.color || '#3498db');
         
         // 鼠标悬停效果
         card.addEventListener('mouseenter', function() {
@@ -3623,14 +3623,12 @@
                                 <label for="milestoneColor">颜色</label>
                                 <div class="color-picker">
                                     <input type="color" id="milestoneColor" name="color" 
-                                           value="${milestoneData ? milestoneData.color || '#9b59b6' : '#9b59b6'}">
+                                           value="${milestoneData ? milestoneData.color || '#3498db' : '#3498db'}">
                                     <div class="color-presets">
-                                        <span class="color-preset" data-color="#9b59b6" title="紫色" style="width: 3px; height: 3px; background-color: #9b59b6; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
-                                        <span class="color-preset" data-color="#e74c3c" title="红色" style="width: 3px; height: 3px; background-color: #e74c3c; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
-                                        <span class="color-preset" data-color="#f39c12" title="橙色" style="width: 3px; height: 3px; background-color: #f39c12; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
                                         <span class="color-preset" data-color="#27ae60" title="绿色" style="width: 3px; height: 3px; background-color: #27ae60; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
                                         <span class="color-preset" data-color="#3498db" title="蓝色" style="width: 3px; height: 3px; background-color: #3498db; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
-                                        <span class="color-preset" data-color="#e67e22" title="深橙色" style="width: 3px; height: 3px; background-color: #e67e22; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
+                                        <span class="color-preset" data-color="#f39c12" title="橙色" style="width: 3px; height: 3px; background-color: #f39c12; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
+                                        <span class="color-preset" data-color="#e74c3c" title="红色" style="width: 3px; height: 3px; background-color: #e74c3c; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block;"></span>
                                     </div>
                                 </div>
                             </div>

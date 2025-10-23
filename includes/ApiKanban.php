@@ -1575,7 +1575,7 @@ class ApiKanban extends ApiBase {
         $title = trim( $params['title'] ?? '' );
         $description = trim( $params['description'] ?? '' );
         $targetDate = $params['target_date'] ?? null;
-        $color = $params['color'] ?? '#9b59b6';
+        $color = $params['color'] ?? '#3498db';
         
         // 检查权限
         $user = $this->getUser();
