@@ -362,7 +362,7 @@ JS
         
         foreach ( $ranges as $key => $label ) {
             $html .= Html::element( 'button', [ 
-                'class' => 'time-range-btn' . ( $key === 'month' ? ' active' : '' ),
+                'class' => 'time-range-btn' . ( $key === 'week' ? ' active' : '' ),
                 'data-range' => $key
             ], $label );
         }
@@ -540,7 +540,7 @@ JS
         
         foreach ( $ranges as $key => $label ) {
             $html .= Html::element( 'button', [ 
-                'class' => 'time-range-btn' . ( $key === 'month' ? ' active' : '' ),
+                'class' => 'time-range-btn' . ( $key === 'week' ? ' active' : '' ),
                 'data-range' => $key
             ], $label );
         }

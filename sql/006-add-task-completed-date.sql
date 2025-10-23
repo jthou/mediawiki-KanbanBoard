@@ -11,3 +11,4 @@ ALTER TABLE /*_*/kanban_tasks
 
 
 
+

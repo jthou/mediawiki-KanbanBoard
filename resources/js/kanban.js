@@ -3900,9 +3900,9 @@
         // 绑定自定义时间范围事件
         bindCustomTimeRangeEvents();
         
-        // 默认加载最近一月的数据
+        // 默认加载最近一周的数据
         console.log('开始加载默认数据...');
-        loadStatsData(null, 'month', 'time_desc');
+        loadStatsData(null, 'week', 'time_desc');
     }
     
     // 绑定时间范围按钮事件
@@ -4186,7 +4186,7 @@
                 
                 // 获取当前时间范围
                 const activeTimeBtn = document.querySelector('.time-range-btn.active');
-                const timeRange = activeTimeBtn ? activeTimeBtn.dataset.range : 'month';
+                const timeRange = activeTimeBtn ? activeTimeBtn.dataset.range : 'week';
                 
                 // 确定新的排序方式
                 let newSortBy;

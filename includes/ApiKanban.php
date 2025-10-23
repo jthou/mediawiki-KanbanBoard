@@ -2007,21 +2007,21 @@ class ApiKanban extends ApiBase {
      */
     private function getStats( $params ) {
         $boardId = $params['board_id'] ?? null;
-        $timeRange = $params['time_range'] ?? 'month';
+        $timeRange = $params['time_range'] ?? 'week'; // 默认改为 week
+        $startDate = $params['start_date'] ?? null;
+        $endDate = $params['end_date'] ?? null;
         
-        wfDebugLog('kanbanboard', '获取统计数据: board_id=' . $boardId . ', time_range=' . $timeRange);
+        wfDebugLog('kanbanboard', '获取统计数据: board_id=' . $boardId . ', time_range=' . $timeRange . ', start_date=' . $startDate . ', end_date=' . $endDate);
         
         $db = $this->getDB();
         
         // 计算时间范围
-        $dateCondition = $this->getDateCondition( $timeRange );
+        $dateCondition = $this->getDateCondition( $timeRange, $startDate, $endDate );
         
         // 获取总体统计
-        $overview = $this->getOverviewStats( $db, $boardId, $dateCondition );
+        $overview = $this->getOverviewStats( $db, $boardId, $dateCondition, $timeRange, $startDate, $endDate );
         
         // 获取按时间范围的任务统计
-        $startDate = $params['start_date'] ?? null;
-        $endDate = $params['end_date'] ?? null;
         $timeRangeTasks = $this->getTimeRangeTasks( $db, $boardId, $timeRange, $startDate, $endDate );
         
         // 获取任务趋势数据
@@ -2045,7 +2045,7 @@ class ApiKanban extends ApiBase {
     /**
      * 根据时间范围获取日期条件
      */
-    private function getDateCondition( $timeRange ) {
+    private function getDateCondition( $timeRange, $startDate = null, $endDate = null ) {
         $now = time();
         
         switch ( $timeRange ) {
@@ -2061,6 +2061,13 @@ class ApiKanban extends ApiBase {
             case 'year':
                 $startTime = $now - (365 * 24 * 60 * 60);
                 break;
+            case 'custom':
+                if ( $startDate && $endDate ) {
+                    $startTime = strtotime($startDate . ' 00:00:00');
+                } else {
+                    $startTime = 0; // 如果没有提供自定义日期，返回0（全部时间）
+                }
+                break;
             case 'all':
             default:
                 $startTime = 0;
@@ -2073,23 +2080,47 @@ class ApiKanban extends ApiBase {
     /**
      * 获取总体统计数据
      */
-    private function getOverviewStats( $db, $boardId, $dateCondition ) {
-        // 构建查询条件
-        $whereCondition = [];
+    private function getOverviewStats( $db, $boardId, $dateCondition, $timeRange = null, $startDate = null, $endDate = null ) {
+        // 构建基础查询条件
+        $baseCondition = [];
         if ( $boardId ) {
-            $whereCondition['board_id'] = $boardId;
+            $baseCondition['board_id'] = $boardId;
         }
         
-        // 总任务数
+        // 总任务数（在时间范围内创建的任务）
+        $totalCondition = $baseCondition;
+        if ( $dateCondition > 0 ) {
+            if ( $timeRange === 'custom' && $startDate && $endDate ) {
+                // 自定义时间范围：使用具体的开始和结束日期
+                $totalCondition[] = 'created_at >= ' . $db->addQuotes( $startDate . ' 00:00:00' );
+                $totalCondition[] = 'created_at <= ' . $db->addQuotes( $endDate . ' 23:59:59' );
+            } else {
+                // 预设时间范围：使用计算出的开始时间
+                $totalCondition[] = 'created_at >= ' . $db->addQuotes( date('Y-m-d H:i:s', $dateCondition) );
+            }
+        }
+        
         $totalTasks = $db->selectField(
             'kanban_tasks',
             'COUNT(*)',
-            $whereCondition,
+            $totalCondition,
             __METHOD__
         );
         
-        // 已完成任务数
-        $completedCondition = array_merge( $whereCondition, [ 'completed_at IS NOT NULL' ] );
+        // 已完成任务数（在时间范围内完成的任务）
+        $completedCondition = $baseCondition;
+        $completedCondition['completed_at IS NOT NULL'] = true;
+        if ( $dateCondition > 0 ) {
+            if ( $timeRange === 'custom' && $startDate && $endDate ) {
+                // 自定义时间范围：使用具体的开始和结束日期
+                $completedCondition[] = 'completed_at >= ' . $db->addQuotes( $startDate . ' 00:00:00' );
+                $completedCondition[] = 'completed_at <= ' . $db->addQuotes( $endDate . ' 23:59:59' );
+            } else {
+                // 预设时间范围：使用计算出的开始时间
+                $completedCondition[] = 'completed_at >= ' . $db->addQuotes( date('Y-m-d H:i:s', $dateCondition) );
+            }
+        }
+        
         $completedTasks = $db->selectField(
             'kanban_tasks',
             'COUNT(*)',
